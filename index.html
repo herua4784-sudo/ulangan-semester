@@ -1117,6 +1117,143 @@ function Kop({ s }) {
   );
 }
 
+/* ---------------- Foto Peserta ---------------- */
+/** Kunci foto: NISN (tetap walau nomor peserta dibuat ulang); tanpa NISN pakai nama + tingkat. */
+const fotoKey = s => (String(s.NISN || '').trim() || ('N:' + String(s.Nama || '').toLowerCase().replace(/\s+/g, ' ').trim() + '|' + s.Tingkat));
+function useFoto() {
+  const [f, setF] = useState({});
+  useEffect(() => { api('getFoto').then(setF).catch(() => { }); }, []);
+  return f;
+}
+/** Kecilkan foto di browser: 240×320 (3:4) dipotong tengah, JPEG < 45 KB. */
+function kompresFoto(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const W = 240, H = 320, c = document.createElement('canvas');
+      c.width = W; c.height = H;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+      const r = Math.max(W / img.width, H / img.height), w = img.width * r, h = img.height * r;
+      ctx.drawImage(img, (W - w) / 2, (H - h) * 0.35, w, h);
+      let q = 0.82, d = c.toDataURL('image/jpeg', q);
+      while (d.length > 45000 && q > 0.3) { q -= 0.08; d = c.toDataURL('image/jpeg', q); }
+      URL.revokeObjectURL(url);
+      res(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error(file.name + ': bukan gambar JPG/PNG (foto HEIC iPhone harus diubah ke JPG dulu)')); };
+    img.src = url;
+  });
+}
+const normNama = x => String(x || '').toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/[_\-.]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+function FotoPage() {
+  const { notify } = useContext(Ctx);
+  const [siswa, setSiswa] = useState(null);
+  const [foto, setFoto] = useState({});
+  const [fR, setFR] = useState('');
+  const [q, setQ] = useState('');
+  const [prog, setProg] = useState(null);
+  const [hasil, setHasil] = useState(null);
+  const ref1 = useRef(); const target = useRef(null);
+  const load = async () => {
+    try {
+      const [s, f] = await Promise.all([api('getTable', { name: 'Siswa' }), api('getFoto', {}, { fresh: true })]);
+      setSiswa(s.rows.filter(x => x.Status !== 'Nonaktif')); setFoto(f);
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const kirim = async items => {
+    for (let i = 0; i < items.length; i += 8) {
+      setProg({ n: Math.min(i + 8, items.length), total: items.length });
+      await api('uploadFoto', { items: items.slice(i, i + 8) });
+      setFoto(f => { const n = { ...f }; items.slice(i, i + 8).forEach(it => { n[it.kunci] = it.data; }); return n; });
+    }
+    setProg(null);
+  };
+  const cocokkan = f => {
+    const stem = normNama(f.name), digits = stem.replace(/\s/g, '');
+    return siswa.find(s => (s.NISN && String(s.NISN).trim() === digits) || s.Username === digits || String(s.NoPeserta).replace('-', '') === digits.replace('-', '') || normNama(s.Nama) === stem);
+  };
+  const unggahBanyak = async files => {
+    const cocok = [], gagal = [];
+    for (const f of files) {
+      const s = cocokkan(f);
+      if (!s) { gagal.push(f.name + ' — tidak ada siswa yang cocok'); continue; }
+      try { cocok.push({ kunci: fotoKey(s), no: s.NoPeserta, nama: s.Nama, data: await kompresFoto(f) }); }
+      catch (e) { gagal.push(e.message); }
+    }
+    try { if (cocok.length) await kirim(cocok); setHasil({ ok: cocok.length, gagal }); }
+    catch (e) { setProg(null); notify(e.message, 'err'); }
+  };
+  const unggahSatu = async (s, f) => {
+    try { await kirim([{ kunci: fotoKey(s), no: s.NoPeserta, nama: s.Nama, data: await kompresFoto(f) }]); notify('Foto tersimpan: ' + s.Nama); }
+    catch (e) { setProg(null); notify(e.message, 'err'); }
+  };
+  const hapus = async s => {
+    if (!confirm('Hapus foto ' + s.Nama + '?')) return;
+    try { await api('hapusFoto', { kunci: fotoKey(s) }); setFoto(f => { const n = { ...f }; delete n[fotoKey(s)]; return n; }); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+
+  if (!siswa) return <div className="card muted">Memuat…</div>;
+  const ruang = [...new Set(siswa.map(s => s.Ruang))].filter(Boolean).sort();
+  const shown = siswa.filter(s => (!fR || s.Ruang === fR) && (!q || (s.Nama + s.NoPeserta + s.NISN).toLowerCase().includes(q.toLowerCase())))
+    .sort((a, b) => a.NoPeserta.localeCompare(b.NoPeserta));
+  const ada = siswa.filter(s => foto[fotoKey(s)]).length;
+
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            <button className="btn primary" disabled={!!prog} onClick={() => ref1.current.click()}>⬆ Unggah banyak foto sekaligus</button>
+            <input ref={ref1} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) unggahBanyak(f); }} />
+            {prog && <span className="muted">Mengunggah {prog.n}/{prog.total}…</span>}
+          </div>
+          <span className={'badge ' + (ada === siswa.length ? 'b-hijau' : 'b-kuning')}>{ada} / {siswa.length} siswa sudah berfoto</span>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>
+          <b>Unggah banyak:</b> beri nama setiap file foto dengan <b>NISN</b> (mis. <code>0081234567.jpg</code>), nomor peserta (<code>10-001.jpg</code>), atau <b>nama lengkap</b> siswa (<code>Ahmad Fauzi.jpg</code>), lalu pilih semua file sekaligus. Foto otomatis dipotong ukuran 3×4 dan dikecilkan.
+          Atau klik kotak foto di bawah untuk mengunggah satu per satu (bisa langsung dari kamera HP). Foto tersimpan berdasarkan NISN, jadi tetap aman walau nomor peserta dibuat ulang.
+        </p>
+      </div>
+      <div className="card">
+        <div className="row" style={{ marginBottom: 12 }}>
+          <select value={fR} onChange={e => setFR(e.target.value)} style={{ width: 160 }}><option value="">Semua ruang</option>{ruang.map(r => <option key={r}>{r}</option>)}</select>
+          <input placeholder="Cari nama / no. peserta" value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
+          <span className="muted">{shown.filter(s => !foto[fotoKey(s)]).length} belum berfoto</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 12 }}>
+          {shown.map(s => {
+            const src = foto[fotoKey(s)];
+            return (
+              <div key={s.NoPeserta} style={{ border: '1px solid var(--garis)', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                <div onClick={() => { target.current = s; document.getElementById('foto1').click(); }} title="Klik untuk unggah / ganti foto"
+                  style={{ width: 90, height: 120, margin: '0 auto 6px', borderRadius: 6, cursor: 'pointer', background: src ? `center/cover url(${src})` : '#f1f5f9', border: src ? '1px solid #cbd5e1' : '2px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 12 }}>
+                  {!src && '📷 Unggah'}
+                </div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>{s.Nama}</div>
+                <div className="hint">{s.NoPeserta} · {s.Ruang}</div>
+                {src && <button className="btn sm danger" style={{ marginTop: 4 }} onClick={() => hapus(s)}>Hapus</button>}
+              </div>
+            );
+          })}
+        </div>
+        <input id="foto1" type="file" accept="image/*" capture="user" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f && target.current) unggahSatu(target.current, f); }} />
+      </div>
+      {hasil && (
+        <Modal title="Hasil unggah foto" onClose={() => setHasil(null)}>
+          <div className="ok">✓ {hasil.ok} foto tersimpan</div>
+          {hasil.gagal.length > 0 && <><p><b>{hasil.gagal.length} file tidak diproses:</b></p><div className="err">{hasil.gagal.join('\n')}</div><p className="hint">Ganti nama file sesuai NISN / nomor peserta / nama lengkap, atau unggah satu per satu dengan klik kotak fotonya.</p></>}
+        </Modal>
+      )}
+    </>
+  );
+}
+
 /** Alamat halaman ujian siswa (dibuat di Tahap 2) + username, untuk QR di kartu. */
 function linkSiswa(username) {
   const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
@@ -1130,6 +1267,7 @@ function QR({ text }) {
 
 function KartuPage() {
   const d = useCetakData();
+  const foto = useFoto();
   const [fT, setFT] = useState('');
   const [fR, setFR] = useState('');
   const [urut, setUrut] = useState('kelas');
@@ -1167,7 +1305,7 @@ function KartuPage() {
                 </div>
                 <div className="kartu-body">
                   <div className="kartu-left">
-                    <div className="foto">Pas Foto<br />2 × 3</div>
+                    {foto[fotoKey(x)] ? <img src={foto[fotoKey(x)]} alt="" style={{ width: '20mm', height: '26mm', objectFit: 'cover', border: '1px solid #000' }} /> : <div className="foto">Pas Foto<br />2 × 3</div>}
                     <QR text={linkSiswa(x.Username)} />
                     <div style={{ fontSize: '5.5pt', textAlign: 'center', lineHeight: 1.1 }}>Scan untuk login</div>
                   </div>
@@ -1198,6 +1336,7 @@ function KartuPage() {
 /* ---------------- Kartu Meja (ditempel di meja ujian) ---------------- */
 function KartuMejaPage() {
   const d = useCetakData();
+  const foto = useFoto();
   const [fR, setFR] = useState('');
   const [fS, setFS] = useState('');
   if (!d) return <div className="card muted">Memuat data cetak…</div>;
@@ -1233,12 +1372,15 @@ function KartuMejaPage() {
                     <div style={{ fontWeight: 700 }}>{s.nama_sekolah}</div>
                   </div>
                 </div>
-                <div className="meja-body">
+                <div className="meja-body" style={foto[fotoKey(x)] ? { flexDirection: 'row', gap: '5mm' } : null}>
+                  {foto[fotoKey(x)] && <img src={foto[fotoKey(x)]} alt="" style={{ width: '27mm', height: '36mm', objectFit: 'cover', border: '1px solid #000', flexShrink: 0 }} />}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2mm' }}>
                   <div className="meja-no"><span>MEJA</span><b>{x.NoMeja}</b></div>
                   <div className="meja-info">
                     <div className="np">{x.NoPeserta}</div>
                     <div className="nm">{x.Nama}</div>
                     <div className="kl">Kelas {x.Kelas || ROMAWI[x.Tingkat]} · {nRuang[x.Ruang] || x.Ruang}{sesiList.length > 1 ? ' · Sesi ' + x.Sesi : ''}</div>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -1492,6 +1634,8 @@ function MonitorPage({ user }) {
   const [sisaTok, setSisaTok] = useState(0);
   const [fStatus, setFStatus] = useState('');
   const [lihatLog, setLihatLog] = useState(null);
+  const [foto, setFoto] = useState({});
+  useEffect(() => { api('getFoto').then(setFoto).catch(() => { }); }, []);
   const qRef = useRef(q); qRef.current = q;
 
   const load = async silent => {
@@ -1581,7 +1725,7 @@ function MonitorPage({ user }) {
             <tbody>
               {shown.map(s => (
                 <tr key={s.jid + s.no} style={s.status === 'TERKUNCI' ? { background: '#fef2f2' } : null}>
-                  <td>{s.meja}</td><td style={{ fontFamily: 'monospace' }}>{s.no}</td><td><b>{s.nama}</b><div className="hint">{s.kelas} · {s.ruang}</div></td>
+                  <td>{s.meja}</td><td style={{ fontFamily: 'monospace' }}>{s.no}</td><td><div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{foto[s.fk] && <img src={foto[s.fk]} alt="" style={{ width: 30, height: 40, objectFit: 'cover', borderRadius: 4 }} />}<div><b>{s.nama}</b><div className="hint">{s.kelas} · {s.ruang}</div></div></div></td>
                   <td>{s.mapel}</td>
                   <td><span className={'badge ' + ST_LABEL[s.status][1]}>{ST_LABEL[s.status][0]}</span></td>
                   <td>{s.n ? <>{s.terjawab}/{s.n}<div style={{ height: 5, background: '#e2e8f0', borderRadius: 9, marginTop: 3, width: 70 }}><div style={{ height: '100%', width: (s.terjawab / s.n * 100) + '%', background: 'var(--hijau)', borderRadius: 9 }} /></div></> : '–'}</td>
@@ -1702,7 +1846,7 @@ function UjiServerPage() {
 const MENU = {
   admin: [
     ['sec', 'Utama'], ['dashboard', '🏠 Dashboard'],
-    ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
+    ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['foto', '📷 Foto Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
     ['sec', 'Ujian'], ['monitor', '📡 Monitoring'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
     ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
@@ -1710,7 +1854,7 @@ const MENU = {
   ],
   guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -1738,7 +1882,7 @@ function App() {
   if (!user) return <Ctx.Provider value={{ notify }}><Login onLogin={u => { setUser(u); setPage(''); }} />{toast && <div className={'toast ' + toast.type}>{toast.msg}</div>}{retry && <div className="retry-bar no-print">⏳ Server sedang sibuk — mencoba lagi otomatis ({retry.i}/{retry.max})…</div>}</Ctx.Provider>;
 
   const pages = {
-    dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
+    dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, foto: <FotoPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
     jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />
   };
   const allowed = MENU[user.peran].map(m => m[0]);
