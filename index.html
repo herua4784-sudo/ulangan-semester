@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ulangan Semester — Admin & Guru</title>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<style>
+  :root{--biru:#1e3a8a;--biru2:#2563eb;--abu:#f1f5f9;--garis:#e2e8f0;--teks:#0f172a;--muted:#64748b;--hijau:#16a34a;--merah:#dc2626;--kuning:#d97706}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--teks);background:var(--abu);font-size:14px}
+  button{font:inherit;cursor:pointer}
+  input,select,textarea{font:inherit;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;width:100%}
+  input:focus,select:focus{outline:2px solid #93c5fd;border-color:var(--biru2)}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+  label>input,label>select{margin-top:4px;color:var(--teks)}
+  .btn{border:1px solid var(--garis);background:#fff;padding:7px 12px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+  .btn:hover{background:#f8fafc}
+  .btn.primary{background:var(--biru2);border-color:var(--biru2);color:#fff}
+  .btn.primary:hover{background:#1d4ed8}
+  .btn.danger{color:var(--merah);border-color:#fecaca}
+  .btn.success{background:var(--hijau);border-color:var(--hijau);color:#fff}
+  .btn.sm{padding:4px 8px;font-size:12.5px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .layout{display:flex;min-height:100vh}
+  .sidebar{width:230px;background:var(--biru);color:#fff;flex-shrink:0;position:sticky;top:0;height:100vh;overflow:auto}
+  .sidebar .brand{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.15)}
+  .sidebar .brand b{display:block;font-size:16px}
+  .sidebar .brand small{opacity:.75}
+  .sidebar nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#dbeafe;padding:10px 16px;font-size:14px}
+  .sidebar nav button.active,.sidebar nav button:hover{background:rgba(255,255,255,.12);color:#fff}
+  .sidebar .sec{font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.55;padding:14px 16px 4px}
+  .main{flex:1;padding:22px;min-width:0}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+  .topbar h2{margin:0;font-size:20px}
+  .card{background:#fff;border:1px solid var(--garis);border-radius:10px;padding:16px;margin-bottom:16px}
+  .muted{color:var(--muted)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .grid{display:grid;gap:12px}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .stat{background:#fff;border:1px solid var(--garis);border-radius:10px;padding:14px}
+  .stat b{font-size:26px;display:block}
+  table.data{width:100%;border-collapse:collapse;font-size:13px}
+  table.data th{background:#f8fafc;text-align:left;padding:8px;border-bottom:2px solid var(--garis);position:sticky;top:0;z-index:1;white-space:nowrap}
+  table.data td{padding:4px 6px;border-bottom:1px solid var(--garis);vertical-align:middle}
+  table.data td input,table.data td select{padding:5px 6px;font-size:13px}
+  .tablewrap{overflow:auto;max-height:65vh;border:1px solid var(--garis);border-radius:8px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+  .b-abu{background:#e2e8f0;color:#334155}.b-biru{background:#dbeafe;color:#1e40af}.b-kuning{background:#fef3c7;color:#92400e}
+  .b-hijau{background:#dcfce7;color:#166534}.b-merah{background:#fee2e2;color:#991b1b}
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:16px}
+  .login{width:100%;max-width:380px}
+  .login h1{margin:0 0 4px;color:var(--biru);font-size:22px}
+  .err{background:#fee2e2;color:#991b1b;padding:9px 11px;border-radius:6px;white-space:pre-wrap;font-size:13px;margin-bottom:10px}
+  .ok{background:#dcfce7;color:#166534;padding:9px 11px;border-radius:6px;font-size:13px;margin-bottom:10px}
+  .toast{position:fixed;right:18px;bottom:18px;z-index:99;max-width:420px;padding:12px 16px;border-radius:8px;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.2);white-space:pre-wrap}
+  .retry-bar{position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:100;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-top:0;padding:7px 16px;border-radius:0 0 8px 8px;font-size:13px;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+  .toast.ok{background:var(--hijau)}.toast.err{background:var(--merah)}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:30px 14px;overflow:auto}
+  .modal{background:#fff;border-radius:12px;width:100%;max-width:780px;padding:20px}
+  .modal h3{margin-top:0}
+  .soal{border:1px solid var(--garis);border-radius:8px;padding:12px;margin-bottom:10px}
+  .soal .q{white-space:pre-wrap;margin:6px 0 8px}
+  .soal img{max-width:100%;max-height:260px;border-radius:6px;margin-bottom:8px}
+  .opsi{padding:4px 8px;border-radius:5px;margin:2px 0}
+  .opsi.benar{background:#dcfce7;font-weight:600}
+  .hint{font-size:12.5px;color:var(--muted)}
+  @media (max-width:800px){.sidebar{position:fixed;left:-240px;z-index:40;transition:left .2s}.sidebar.open{left:0}.main{padding:14px}.menu-btn{display:inline-flex!important}}
+  .menu-btn{display:none}
+
+  /* ====== CETAK ====== */
+  .page{width:210mm;min-height:297mm;padding:8mm;margin:0 auto 10mm;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.15);color:#000;font-family:Arial,Helvetica,sans-serif}
+  .kartu-grid{display:grid;grid-template-columns:93mm 93mm;gap:3mm 4mm;justify-content:center}
+  .kartu{width:93mm;height:65mm;border:1px solid #000;padding:2mm 2.5mm;font-size:7.8pt;display:flex;flex-direction:column;overflow:hidden;break-inside:avoid}
+  .kartu-head{display:flex;align-items:center;gap:2mm;border-bottom:1.3px solid #000;padding-bottom:1.2mm}
+  .kartu-head img{width:10mm;height:10mm;object-fit:contain}
+  .kartu-head .t{flex:1;text-align:center;line-height:1.2}
+  .kartu-head .t1{font-weight:800;font-size:10pt;letter-spacing:.5px}
+  .kartu-body{display:flex;gap:2.5mm;margin-top:1.5mm;flex:1}
+  .kartu-left{display:flex;flex-direction:column;gap:1.5mm;align-items:center}
+  .foto{width:20mm;height:26mm;border:1px dashed #555;display:flex;align-items:center;justify-content:center;text-align:center;font-size:6.5pt;color:#555}
+  .kartu-left img.qr{width:15mm;height:15mm}
+  .kartu-right{flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+  .kartu table{border-collapse:collapse;width:100%}
+  .kartu td{padding:.3mm 0;vertical-align:top}
+  .kartu td:first-child{width:17mm}
+  .kartu td:nth-child(2){width:2mm}
+  .cred{font-family:"Courier New",monospace;font-weight:700;font-size:10pt;letter-spacing:1px}
+  .ttd-mini{align-self:flex-end;text-align:center;font-size:7.3pt;line-height:1.25}
+  .ttd-mini .sp{height:8mm}
+  .kop{display:flex;align-items:center;gap:4mm;border-bottom:3px double #000;padding-bottom:2mm;margin-bottom:4mm}
+  .kop img{width:20mm;height:20mm;object-fit:contain}
+  .kop .t{flex:1;text-align:center;line-height:1.3}
+  .kop .s1{font-size:11pt}.kop .s2{font-size:15pt;font-weight:800}.kop .s3{font-size:9pt}
+  .judul-cetak{text-align:center;font-weight:800;font-size:12pt;margin:0}
+  .sub-cetak{text-align:center;font-size:10pt;margin:0 0 3mm}
+  .info-cetak{font-size:10pt;margin-bottom:3mm;border-collapse:collapse}
+  .info-cetak td{padding:.6mm 2mm .6mm 0}
+  table.dh{width:100%;border-collapse:collapse;font-size:9.5pt}
+  table.dh th,table.dh td{border:1px solid #000;padding:1mm 1.5mm}
+  table.dh th{background:#e5e7eb;text-align:center}
+  table.dh td{height:7.3mm}
+  table.dh .ttd{width:27mm;position:relative;vertical-align:top;font-size:8pt}
+  table.dh tr{break-inside:avoid}
+  .dh-foot{display:flex;justify-content:space-between;margin-top:4mm;font-size:10pt;break-inside:avoid}
+  .dh-foot .sp{height:15mm}
+  table.ba-isi{font-size:10.5pt;border-collapse:collapse;margin-top:2mm;width:100%}
+  table.ba-isi td{padding:1mm 2mm 1mm 0;vertical-align:top}
+  table.ba-isi td:first-child{width:6mm}
+  table.ba-isi td:nth-child(2){width:55mm}
+  .ba-catatan div{border-bottom:1px dotted #000;height:7.5mm;margin-left:6mm}
+  .ba{font-size:10.5pt}
+  table.ba-ttd td{height:13mm;vertical-align:top}
+  @page{size:A4;margin:8mm}
+  @media print{
+    body{background:#fff}
+    .no-print,.sidebar,.topbar,.toast{display:none!important}
+    .main{padding:0}
+    .card.print-card{border:0;padding:0;margin:0}
+    .page{width:auto;min-height:0;padding:0;margin:0;box-shadow:none;break-after:page}
+    .page:last-child{break-after:auto}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+/* ================================================================
+   KONFIGURASI — tempel URL Web App Apps Script di bawah ini.
+   Jika dibiarkan kosong, URL bisa diisi di halaman login.
+================================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwfPCl63HEf9TSW5FFqjlBn64R6_i6vcSHupUmovI_3IcdrNxlgYdE62fEGbNat2UHT/exec';
+
+const { useState, useEffect, useMemo, useContext, useRef, createContext } = React;
+const Ctx = createContext({});
+const getApiUrl = () => API_URL || localStorage.getItem('us_api') || '';
+
+/* ---------------- API (tahan server sibuk) ----------------
+   - Coba ulang otomatis s.d. 8x (±45 dtk) dengan jeda bertambah + acak (agar
+     63 perangkat tidak menyerbu server di detik yang sama).
+   - Batas waktu 30 detik per permintaan.
+   - Data yang hanya DIBACA disimpan 20 detik di browser, jadi pindah
+     menu tidak selalu memanggil server.
+------------------------------------------------------------ */
+const READ_ACTIONS = ['ping', 'me', 'getSettings', 'getDashboard', 'getTable', 'getPaketList', 'getSoal', 'getCetakData'];
+const RETRYABLE = /sibuk|penuh|too many|invoked|timed? ?out|time ?out|exceeded|service error|internal error|temporar|try again|coba lagi sebentar|terlalu lama|tidak bisa terhubung/i;
+const _apiCache = new Map();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function callApi(action, payload = {}, opt = {}) {
+  const url = getApiUrl();
+  if (!url) throw new Error('URL API belum diatur');
+  const isRead = READ_ACTIONS.includes(action);
+  const ckey = action + JSON.stringify(payload);
+  if (isRead && !opt.fresh) {
+    const c = _apiCache.get(ckey);
+    if (c && Date.now() - c.t < 20000) return { data: c.data, tries: 0, cached: true };
+  }
+  if (!isRead && action !== 'ujiBeban') _apiCache.clear();
+
+  const maxTry = opt.retry === false ? 1 : (opt.maxTry || 8);
+  let lastErr;
+  for (let i = 0; i < maxTry; i++) {
+    if (i > 0) {
+      if (!opt.silent) window.dispatchEvent(new CustomEvent('api-retry', { detail: { i, max: maxTry - 1 } }));
+      // jeda 0,8 → 1,6 → 3,2 → 6,4 → 10 dtk … ditambah acak, total ±45 dtk sebelum menyerah
+      await sleep(Math.min(10000, 800 * 2 ** (i - 1)) + Math.random() * 1500 * i);
+    }
+    let j;
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), opt.timeout || 30000);
+      const res = await fetch(url, {
+        method: 'POST', signal: ctl.signal,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // tanpa CORS preflight
+        body: JSON.stringify({ action, token: localStorage.getItem('us_token') || '', ...payload })
+      });
+      clearTimeout(to);
+      const txt = await res.text();
+      try { j = JSON.parse(txt); }
+      catch (e) {
+        // Apps Script yang kewalahan membalas halaman HTML, bukan JSON
+        if (res.status >= 429 || /too many|invoked|terlalu banyak|try again|error/i.test(txt)) { lastErr = new Error('Server sedang penuh'); continue; }
+        throw new Error('Jawaban server tidak valid. Pastikan URL API benar & web app di-deploy untuk "Siapa saja (Anyone)".');
+      }
+    } catch (e) {
+      if (/tidak valid/.test(e.message)) throw e;
+      lastErr = new Error(e.name === 'AbortError' ? 'Server terlalu lama merespons' : 'Tidak bisa terhubung ke server. Periksa internet / URL API.');
+      continue;
+    }
+    if (j.ok) {
+      if (!opt.silent) window.dispatchEvent(new Event('api-ok'));
+      if (isRead) _apiCache.set(ckey, { t: Date.now(), data: j.data });
+      return { data: j.data, tries: i + 1 };
+    }
+    if (j.error === 'SESI_HABIS') {
+      localStorage.removeItem('us_token'); localStorage.removeItem('us_user');
+      window.dispatchEvent(new Event('sesi-habis'));
+      throw new Error('Sesi habis, silakan login lagi');
+    }
+    if (RETRYABLE.test(j.error)) { lastErr = new Error(j.error); continue; }
+    throw new Error(j.error);
+  }
+  if (!opt.silent) window.dispatchEvent(new Event('api-ok'));
+  throw lastErr || new Error('Server tidak merespons');
+}
+async function api(action, payload = {}, opt = {}) { return (await callApi(action, payload, opt)).data; }
+
+/* ---------------- Helper ---------------- */
+const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+function fmtTanggal(iso, withDay = true) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return iso || '';
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return (withDay ? HARI[d.getDay()] + ', ' : '') + d.getDate() + ' ' + BULAN[d.getMonth()] + ' ' + d.getFullYear();
+}
+function driveImg(url) {
+  url = String(url || '').trim();
+  if (!url) return '';
+  const m = url.match(/[-\w]{25,}/);
+  if (/drive\.google|docs\.google/.test(url) && m) return 'https://lh3.googleusercontent.com/d/' + m[0];
+  return url;
+}
+const ROMAWI = { '10': 'X', '11': 'XI', '12': 'XII' };
+const statusBadge = s => ({ 'Belum Ada': 'b-abu', 'Draft': 'b-biru', 'Diajukan': 'b-kuning', 'Dikembalikan': 'b-merah', 'Terkunci': 'b-hijau' }[s] || 'b-abu');
+const chunk = (arr, n) => { const o = []; for (let i = 0; i < arr.length; i += n) o.push(arr.slice(i, i + n)); return o; };
+
+function readXlsx(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = e => { try { res(XLSX.read(new Uint8Array(e.target.result), { type: 'array' })); } catch (x) { rej(new Error('File tidak bisa dibaca. Gunakan format .xlsx dari template.')); } };
+    fr.onerror = () => rej(new Error('Gagal membaca file'));
+    fr.readAsArrayBuffer(file);
+  });
+}
+function sheetRows(wb, prefer, keys) {
+  const name = wb.SheetNames.find(n => n.toLowerCase() === prefer.toLowerCase()) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '', raw: false });
+  return rows.map(r => {
+    const o = {};
+    Object.keys(r).forEach(k => {
+      const kk = keys.find(x => x.toLowerCase() === String(k).trim().toLowerCase());
+      if (kk) o[kk] = String(r[k]).trim();
+    });
+    return o;
+  }).filter(o => Object.values(o).some(v => v !== ''));
+}
+
+const SOAL_KEYS = ['No', 'Jenis', 'Pertanyaan', 'Gambar', 'A', 'B', 'C', 'D', 'E', 'Kunci', 'Skor'];
+function downloadTemplateSoal(kode, nama) {
+  const data = [
+    SOAL_KEYS,
+    [1, 'PG', 'Hasil dari 12 × 3 adalah ....', '', '36', '32', '42', '24', '', 'A', 1],
+    [2, 'PGK', 'Manakah yang termasuk bilangan prima? (jawaban bisa lebih dari satu)', '', '2', '4', '5', '9', '11', 'A,C,E', 2],
+    [3, 'BS', 'Ibu kota Provinsi Kalimantan Timur adalah Samarinda.', '', '', '', '', '', '', 'B', 1],
+    [4, 'ISIAN', 'Hasil dari 15 + 27 = ....', '', '', '', '', '', '', '42|empat puluh dua', 1],
+    [5, 'URAIAN', 'Jelaskan langkah-langkah menyelesaikan persamaan 2x + 4 = 10!', '', '', '', '', '', '', 'Rubrik: langkah benar 3, jawaban x=3 benar 2', 5]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 60 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 6 }];
+  const petunjuk = XLSX.utils.aoa_to_sheet([
+    ['PETUNJUK PENGISIAN SOAL' + (nama ? ' — ' + nama : '')],
+    [''],
+    ['1. Isi soal di sheet "Soal". Jangan ubah nama kolom di baris pertama. Hapus 5 contoh soal sebelum upload.'],
+    ['2. Kolom Jenis diisi salah satu kode berikut:'],
+    ['   PG     = Pilihan ganda (1 jawaban benar). Kunci: A / B / C / D / E'],
+    ['   PGK    = Pilihan ganda kompleks (lebih dari 1 jawaban). Kunci: A,C,E'],
+    ['   BS     = Benar / Salah. Kunci: B (benar) atau S (salah)'],
+    ['   ISIAN  = Isian singkat. Kunci: jawaban; jika ada beberapa jawaban benar pisahkan dengan |'],
+    ['   URAIAN = Esai, dikoreksi guru. Kolom Kunci boleh diisi rubrik/pedoman'],
+    ['3. Kolom Gambar (opsional): link gambar di Google Drive (bagikan "Siapa saja yang memiliki link").'],
+    ['4. Kolom Skor: bobot nilai soal. Kosong = 1.'],
+    ['5. Soal & kunci bersifat RAHASIA. Jangan bagikan file ini lewat grup WhatsApp.'],
+    ['6. Setelah upload, periksa di menu "Lihat", lalu klik "Ajukan" agar diverifikasi admin.']
+  ]);
+  petunjuk['!cols'] = [{ wch: 100 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Soal');
+  XLSX.utils.book_append_sheet(wb, petunjuk, 'Petunjuk');
+  XLSX.writeFile(wb, 'Soal_' + (kode || 'MAPEL') + '.xlsx');
+}
+function downloadTemplateSiswa() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['NISN', 'Nama', 'JK', 'Tingkat', 'Kelas'],
+    ['0081234567', 'Ahmad Fauzi', 'L', '10', 'X'],
+    ['0081234568', 'Siti Rahmawati', 'P', '11', 'XI'],
+    ['0081234569', 'Budi Santoso', 'L', '12', 'XII']
+  ]);
+  ws['!cols'] = [{ wch: 14 }, { wch: 32 }, { wch: 5 }, { wch: 8 }, { wch: 8 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Siswa');
+  XLSX.writeFile(wb, 'Template_Siswa.xlsx');
+}
+
+/* ---------------- Komponen umum ---------------- */
+function Modal({ title, onClose, children, wide }) {
+  return (
+    <div className="modal-bg" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={wide ? { maxWidth: 980 } : null}>
+        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+          <h3 style={{ margin: 0 }}>{title}</h3>
+          <button className="btn sm" onClick={onClose}>✕ Tutup</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FilePick({ label, onFile, accept = '.xlsx,.xls', className = 'btn', disabled }) {
+  const ref = useRef();
+  return (
+    <>
+      <button className={className} disabled={disabled} onClick={() => ref.current.click()}>{label}</button>
+      <input ref={ref} type="file" accept={accept} style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files[0]; e.target.value = ''; if (f) onFile(f); }} />
+    </>
+  );
+}
+
+/**
+ * Tabel yang bisa diedit langsung. columns: [{key,label,width,readOnly,type,options(row)=>[]}]
+ */
+function TableEditor({ name, columns, reloadKey, rowActions, toolbar, onLoaded }) {
+  const { notify } = useContext(Ctx);
+  const [rows, setRows] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState('');
+
+  const load = async () => {
+    try { const d = await api('getTable', { name }); setRows(d.rows); setDirty(false); onLoaded && onLoaded(d.rows); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+  useEffect(() => { load(); }, [name, reloadKey]);
+
+  const set = (i, k, v) => { setRows(r => { const n = [...r]; n[i] = { ...n[i], [k]: v }; return n; }); setDirty(true); };
+  const add = () => { const o = {}; columns.forEach(c => { o[c.key] = c.def || ''; }); setRows(r => [...r, o]); setDirty(true); };
+  const del = i => { if (!confirm('Hapus baris ini?')) return; setRows(r => r.filter((_, j) => j !== i)); setDirty(true); };
+  const save = async () => {
+    setBusy(true);
+    try { const d = await api('saveTable', { name, rows }); setRows(d.rows); setDirty(false); onLoaded && onLoaded(d.rows); notify('Data ' + name + ' tersimpan'); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+
+  if (!rows) return <div className="card muted">Memuat data {name}…</div>;
+  const ql = q.trim().toLowerCase();
+  const shown = rows.map((r, i) => ({ r, i })).filter(({ r }) => !ql || Object.values(r).some(v => String(v).toLowerCase().includes(ql)));
+
+  return (
+    <div className="card">
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+        <div className="row">
+          <input placeholder="Cari…" value={q} onChange={e => setQ(e.target.value)} style={{ width: 200 }} />
+          <span className="muted">{shown.length} dari {rows.length} baris</span>
+        </div>
+        <div className="row">
+          {toolbar}
+          <button className="btn" onClick={add}>＋ Tambah baris</button>
+          <button className="btn primary" onClick={save} disabled={!dirty || busy}>{busy ? 'Menyimpan…' : dirty ? '💾 Simpan perubahan' : '✓ Tersimpan'}</button>
+        </div>
+      </div>
+      <div className="tablewrap">
+        <table className="data">
+          <thead><tr><th>#</th>{columns.map(c => <th key={c.key}>{c.label || c.key}</th>)}<th></th></tr></thead>
+          <tbody>
+            {shown.map(({ r, i }) => (
+              <tr key={i}>
+                <td className="muted">{i + 1}</td>
+                {columns.map(c => {
+                  const v = r[c.key] == null ? '' : r[c.key];
+                  if (c.readOnly) return <td key={c.key} style={{ minWidth: c.width, fontFamily: c.mono ? 'monospace' : undefined }}>{c.render ? c.render(r) : v}</td>;
+                  const opts = typeof c.options === 'function' ? c.options(r) : c.options;
+                  if (opts) return (
+                    <td key={c.key} style={{ minWidth: c.width }}>
+                      <select value={v} onChange={e => set(i, c.key, e.target.value)}>
+                        <option value="">—</option>
+                        {opts.map(o => typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </td>
+                  );
+                  return <td key={c.key} style={{ minWidth: c.width }}><input type={c.type || 'text'} value={v} onChange={e => set(i, c.key, e.target.value)} /></td>;
+                })}
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {rowActions && rowActions(r, dirty)}
+                  <button className="btn sm danger" onClick={() => del(i)} title="Hapus">🗑</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {dirty && <p className="hint" style={{ color: 'var(--kuning)' }}>⚠ Ada perubahan yang belum disimpan.</p>}
+    </div>
+  );
+}
+
+/* ---------------- Login ---------------- */
+function Login({ onLogin }) {
+  const [u, setU] = useState('');
+  const [p, setP] = useState('');
+  const [url, setUrl] = useState(getApiUrl());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async e => {
+    e.preventDefault(); setErr('');
+    if (!API_URL) localStorage.setItem('us_api', url.trim());
+    setBusy(true);
+    try {
+      const r = await api('login', { username: u, password: p });
+      localStorage.setItem('us_token', r.token);
+      localStorage.setItem('us_user', JSON.stringify(r.user));
+      onLogin(r.user);
+    } catch (x) { setErr(x.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="login-wrap">
+      <form className="card login" onSubmit={submit}>
+        <h1>📝 Ulangan Semester</h1>
+        <p className="muted" style={{ marginTop: 0 }}>Panel Admin & Guru</p>
+        {err && <div className="err">{err}</div>}
+        {!API_URL && <label>URL API (Web App Apps Script)<input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/.../exec" required /></label>}
+        <label>Username<input value={u} onChange={e => setU(e.target.value)} autoComplete="username" required /></label>
+        <label>Password<input type="password" value={p} onChange={e => setP(e.target.value)} autoComplete="current-password" required /></label>
+        <button className="btn primary" style={{ width: '100%', justifyContent: 'center' }} disabled={busy}>{busy ? 'Memeriksa…' : 'Masuk'}</button>
+      </form>
+    </div>
+  );
+}
+
+/* ---------------- Dashboard ---------------- */
+function Dashboard({ go }) {
+  const { notify } = useContext(Ctx);
+  const [d, setD] = useState(null);
+  useEffect(() => { api('getDashboard').then(setD).catch(e => notify(e.message, 'err')); }, []);
+  if (!d) return <div className="card muted">Memuat…</div>;
+  const st = d.perStatus || {};
+  const langkah = [
+    ['Isi data sekolah & ganti password admin', 'pengaturan'],
+    ['Import data siswa (atau edit data contoh)', 'siswa'],
+    ['Isi data guru & buat akun guru', 'guru'],
+    ['Tentukan guru pengampu tiap mapel', 'mapel'],
+    ['Atur ruang & jadwal ulangan', 'jadwal'],
+    ['Guru upload soal → admin verifikasi & kunci', 'soal'],
+    ['Cetak kartu peserta & daftar hadir', 'kartu'],
+    ['Cetak berita acara (bersama daftar hadir)', 'ba']
+  ];
+  return (
+    <>
+      <div className="grid stats">
+        <div className="stat"><span className="muted">Peserta</span><b>{d.jumlahSiswa}</b><span className="hint">{Object.keys(d.perTingkat).sort().map(t => `Kls ${t}: ${d.perTingkat[t]}`).join(' · ')}</span></div>
+        <div className="stat"><span className="muted">Guru</span><b>{d.jumlahGuru}</b><span className="hint">{d.tanpaGuru} mapel belum ada guru</span></div>
+        <div className="stat"><span className="muted">Ruang / Jadwal</span><b>{d.jumlahRuang} / {d.jumlahJadwal}</b></div>
+        <div className="stat"><span className="muted">Paket soal terkunci</span><b>{st['Terkunci'] || 0} / {d.jumlahPaket}</b><span className="hint">Diajukan: {st['Diajukan'] || 0} · Draft: {st['Draft'] || 0} · Belum: {st['Belum Ada'] || 0}</span></div>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Langkah persiapan</h3>
+        <ol style={{ lineHeight: 2, margin: 0 }}>
+          {langkah.map(([t, p]) => <li key={p}>{t} <button className="btn sm" onClick={() => go(p)}>Buka →</button></li>)}
+        </ol>
+      </div>
+    </>
+  );
+}
+
+/* ---------------- Siswa ---------------- */
+function SiswaPage() {
+  const { notify } = useContext(Ctx);
+  const [key, setKey] = useState(0);
+  const [ruang, setRuang] = useState([]);
+  const [sesi, setSesi] = useState('1');
+  const [mode, setMode] = useState('kelas');
+  const [reset, setReset] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [hasil, setHasil] = useState(null);
+
+  useEffect(() => {
+    api('getTable', { name: 'Ruang' }).then(d => setRuang(d.rows.map(r => ({ value: r.Kode, label: r.Nama })))).catch(() => { });
+    api('getSettings').then(s => { setSesi(s.jumlah_sesi || '1'); setMode(s.mode_ruang || 'kelas'); }).catch(() => { });
+  }, []);
+
+  const importFile = async f => {
+    try {
+      const wb = await readXlsx(f);
+      const rows = sheetRows(wb, 'Siswa', ['NISN', 'Nama', 'JK', 'Tingkat', 'Kelas']);
+      if (!rows.length) throw new Error('Tidak ada data siswa di file');
+      if (!confirm(`Import ${rows.length} siswa?\n\nPERHATIAN: data siswa lama akan DIGANTI, nomor peserta & password dibuat ulang.`)) return;
+      setBusy(true);
+      const r = await api('importSiswa', { rows });
+      setHasil(r); setKey(k => k + 1);
+      notify(r.jumlah + ' siswa berhasil diimport');
+    } catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  const generate = async () => {
+    if (!confirm(reset ? 'Buat ulang nomor, ruang, DAN PASSWORD semua siswa?\nKartu yang sudah dicetak tidak berlaku lagi.' : 'Buat ulang nomor peserta & pembagian ruang? (password lama tetap)')) return;
+    setBusy(true);
+    try {
+      await api('saveSettings', { settings: { jumlah_sesi: sesi, mode_ruang: mode } });
+      const r = await api('generateAkun', { opsi: { resetPassword: reset, jumlahSesi: sesi, mode } });
+      setHasil(r); setKey(k => k + 1); notify('Nomor peserta & ruang selesai dibuat');
+    } catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+
+  const cols = [
+    { key: 'NoPeserta', label: 'No. Peserta', readOnly: true, mono: true },
+    { key: 'NISN', width: 110 },
+    { key: 'Nama', width: 220 },
+    { key: 'JK', options: ['L', 'P'], width: 60 },
+    { key: 'Tingkat', options: ['10', '11', '12'], width: 70 },
+    { key: 'Kelas', width: 70 },
+    { key: 'Ruang', options: ruang, width: 150 },
+    { key: 'Sesi', width: 50 },
+    { key: 'NoMeja', label: 'Meja', width: 50 },
+    { key: 'Username', readOnly: true, mono: true },
+    { key: 'Password', readOnly: true, mono: true },
+    { key: 'Status', options: ['Aktif', 'Nonaktif'], width: 100, def: 'Aktif' }
+  ];
+  return (
+    <>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>1. Import data siswa</h3>
+        <div className="row">
+          <button className="btn" onClick={downloadTemplateSiswa}>⬇ Download template Excel</button>
+          <FilePick label="⬆ Import dari Excel" className="btn primary" onFile={importFile} disabled={busy} />
+        </div>
+        <p className="hint">Kolom: NISN, Nama, JK (L/P), Tingkat (10/11/12), Kelas. Data contoh 63 siswa (kelas 10: 20, kelas 11: 21, kelas 12: 22) sudah tersedia untuk uji coba.</p>
+        <h3>2. Nomor peserta, akun & pembagian ruang</h3>
+        <div className="row">
+          <label style={{ margin: 0 }}>Cara pembagian ruang
+            <select value={mode} onChange={e => setMode(e.target.value)} style={{ width: 260 }}>
+              <option value="kelas">1 ruang = 1 kelas (10 / 11 / 12)</option>
+              <option value="silang">Silang tingkat (kelas dicampur)</option>
+            </select>
+          </label>
+          <label style={{ margin: 0 }}>Jumlah sesi per hari <input type="number" min="1" max="4" value={sesi} onChange={e => setSesi(e.target.value)} style={{ width: 80 }} /></label>
+          <label style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={reset} onChange={e => setReset(e.target.checked)} style={{ width: 'auto' }} /> Buat ulang password juga</label>
+          <button className="btn success" onClick={generate} disabled={busy}>⚙ Buat nomor peserta & bagi ruang</button>
+        </div>
+        <p className="hint">{mode === 'kelas'
+          ? <>Siswa kelas 10 masuk ruang bertanda Tingkat 10, dan seterusnya. Atur ruang & kapasitas di menu Ruang.</>
+          : <>Tingkat dicampur (10-11-12-10-11-12…), jadi siswa yang bersebelahan mengerjakan soal berbeda. Kolom Tingkat di menu Ruang diabaikan.</>}</p>
+        {hasil && <div className="ok">✓ {hasil.jumlah} peserta ({hasil.mode === 'silang' ? 'silang tingkat' : '1 ruang = 1 kelas'}) · {hasil.ruang.map(r => `Sesi ${r.sesi} ${r.ruang}: ${r.isi}`).join(' · ')}</div>}
+      </div>
+      <TableEditor name="Siswa" columns={cols} reloadKey={key} />
+      <p className="hint">Jika Tingkat siswa diubah manual, klik lagi "Buat nomor peserta & bagi ruang" agar nomornya sesuai.</p>
+    </>
+  );
+}
+
+/* ---------------- Guru ---------------- */
+function GuruPage() {
+  const { notify } = useContext(Ctx);
+  const [akun, setAkun] = useState(null);
+  const [key, setKey] = useState(0);
+  const reset = async (r, dirty) => {
+    if (dirty) return notify('Simpan perubahan tabel dulu', 'err');
+    if (!r.Kode) return notify('Isi kode guru dulu', 'err');
+    if (!confirm('Buat password baru untuk ' + r.Nama + '?')) return;
+    try { const a = await api('resetPasswordGuru', { kode: r.Kode }); setAkun({ ...a, nama: r.Nama }); setKey(k => k + 1); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+  const cols = [
+    { key: 'Kode', width: 80 }, { key: 'Nama', width: 220 }, { key: 'NIP', width: 160 },
+    { key: 'Username', width: 120 }, { key: 'Aktif', options: ['Ya', 'Tidak'], width: 80, def: 'Ya' },
+    { key: 'SudahAdaPassword', label: 'Password', readOnly: true, render: r => r.SudahAdaPassword === 'Ya' ? <span className="badge b-hijau">Sudah</span> : <span className="badge b-abu">Belum</span> }
+  ];
+  return (
+    <>
+      <div className="card hint">Isi Kode (mis. G01) & nama guru → Simpan → klik <b>🔑 Password</b> untuk membuat akun. Password hanya tampil sekali, catat & berikan langsung ke guru.</div>
+      <TableEditor name="Guru" columns={cols} reloadKey={key}
+        rowActions={(r, dirty) => <button className="btn sm" onClick={() => reset(r, dirty)}>🔑 Password</button>} />
+      {akun && (
+        <Modal title={'Akun guru: ' + akun.nama} onClose={() => setAkun(null)}>
+          <p>Berikan data ini kepada guru yang bersangkutan:</p>
+          <table className="data" style={{ maxWidth: 360 }}><tbody>
+            <tr><td>Username</td><td className="cred">{akun.username}</td></tr>
+            <tr><td>Password</td><td className="cred">{akun.password}</td></tr>
+            <tr><td>Alamat</td><td>{location.href.split('#')[0]}</td></tr>
+          </tbody></table>
+          <p className="hint">Password ini tidak akan ditampilkan lagi. Jika lupa, buat password baru.</p>
+          <button className="btn" onClick={() => navigator.clipboard.writeText(`Akun Ulangan Semester\nAlamat: ${location.href.split('#')[0]}\nUsername: ${akun.username}\nPassword: ${akun.password}`).then(() => notify('Tersalin'))}>📋 Salin</button>
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/* ---------------- Mapel ---------------- */
+function MapelPage() {
+  const [guru, setGuru] = useState([]);
+  useEffect(() => { api('getTable', { name: 'Guru' }).then(d => setGuru(d.rows.map(g => ({ value: g.Kode, label: g.Kode + ' — ' + g.Nama })))).catch(() => { }); }, []);
+  const cols = [
+    { key: 'Kode', width: 90 }, { key: 'Nama', width: 240 }, { key: 'Tingkat', options: ['10', '11', '12'], width: 70 },
+    { key: 'KodeGuru', label: 'Guru Pengampu', options: guru, width: 220 }, { key: 'Urut', width: 60 }
+  ];
+  return (
+    <>
+      <div className="card hint">Satu baris = satu paket soal (mapel × tingkat). Kode harus unik, mis. MTK10, MTK11. Guru hanya bisa upload soal untuk mapel yang dia ampu.</div>
+      <TableEditor name="Mapel" columns={cols} />
+    </>
+  );
+}
+
+/* ---------------- Ruang ---------------- */
+function RuangPage() {
+  return (
+    <>
+      <div className="card hint">Kapasitas = jumlah meja/perangkat di ruang. <b>Tingkat</b> = ruang ini khusus untuk kelas berapa (dipakai jika pembagian "1 ruang = 1 kelas"). Satu kelas boleh memakai lebih dari satu ruang. Setelah mengubah ruang, buka menu Peserta lalu klik "Buat nomor peserta & bagi ruang".</div>
+      <TableEditor name="Ruang" columns={[{ key: 'Kode', width: 80 }, { key: 'Nama', width: 200 }, { key: 'Kapasitas', type: 'number', width: 90 }, { key: 'Tingkat', label: 'Khusus Kelas', options: ['10', '11', '12'], width: 110 }]} />
+    </>
+  );
+}
+
+/* ---------------- Jadwal ---------------- */
+const TK = ['10', '11', '12'];
+const menit = (a, b) => { const p = s => { const m = String(s || '').match(/(\d{1,2}):(\d{2})/); return m ? +m[1] * 60 + +m[2] : NaN; }; return p(b) - p(a); };
+const addDays = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const x = new Date(y, m - 1, d + n); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); };
+const dayOf = iso => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).getDay(); };
+
+/** Kelompokkan baris Jadwal (1 baris per tingkat) menjadi slot (1 baris per jam ujian). */
+function jadwalToSlots(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const k = [r.Tanggal, r.JamMulai, r.JamSelesai, r.Sesi || '1'].join('|');
+    if (!map[k]) map[k] = { uid: k + Math.random(), Tanggal: r.Tanggal, JamMulai: r.JamMulai, JamSelesai: r.JamSelesai, Sesi: r.Sesi || '1', cell: {} };
+    map[k].cell[r.Tingkat] = { ID: r.ID, KodeMapel: r.KodeMapel };
+  });
+  return Object.values(map).sort((a, b) => (a.Tanggal + a.JamMulai + a.Sesi).localeCompare(b.Tanggal + b.JamMulai + b.Sesi));
+}
+function slotsToRows(slots) {
+  const rows = [];
+  slots.forEach(s => TK.forEach(t => {
+    const c = s.cell[t];
+    if (c && c.KodeMapel) rows.push({ ID: c.ID || '', Tanggal: s.Tanggal, Sesi: s.Sesi || '1', JamMulai: s.JamMulai, JamSelesai: s.JamSelesai, Tingkat: t, KodeMapel: c.KodeMapel, Durasi: String(Math.max(0, menit(s.JamMulai, s.JamSelesai)) || '') });
+  }));
+  return rows;
+}
+/** Nomor jam ke- per tanggal */
+function jamKe(slots) {
+  const o = {}; const cnt = {};
+  slots.forEach(s => { const k = s.Tanggal + '|' + s.JamMulai; if (!(k in o)) { cnt[s.Tanggal] = (cnt[s.Tanggal] || 0) + 1; o[k] = cnt[s.Tanggal]; } });
+  return s => o[s.Tanggal + '|' + s.JamMulai];
+}
+
+function JadwalPage() {
+  const { notify } = useContext(Ctx);
+  const [mapel, setMapel] = useState([]);
+  const [slots, setSlots] = useState(null);
+  const [st, setSt] = useState({});
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [view, setView] = useState('edit');
+  const [gen, setGen] = useState({ mulai: '', jam: '07:30-09:00\n09:30-11:00\n11:15-12:45', sabtu: false });
+
+  const load = async () => {
+    try {
+      const [m, j, s] = await Promise.all([api('getTable', { name: 'Mapel' }), api('getTable', { name: 'Jadwal' }), api('getSettings')]);
+      setMapel(m.rows.sort((a, b) => Number(a.Urut || 0) - Number(b.Urut || 0)));
+      setSlots(jadwalToSlots(j.rows)); setSt(s); setDirty(false);
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  useEffect(() => { load(); }, []);
+  if (!slots) return <div className="card muted">Memuat jadwal…</div>;
+
+  const namaMapel = Object.fromEntries(mapel.map(m => [m.Kode, m.Nama]));
+  const upd = (i, f) => { setSlots(s => { const n = [...s]; n[i] = f({ ...n[i], cell: { ...n[i].cell } }); return n; }); setDirty(true); };
+  const setCell = (i, t, v) => upd(i, s => { s.cell[t] = { ...(s.cell[t] || {}), KodeMapel: v }; return s; });
+  const tambah = () => {
+    const last = slots[slots.length - 1];
+    setSlots([...slots, { uid: Math.random(), Tanggal: last ? last.Tanggal : '', JamMulai: '', JamSelesai: '', Sesi: '1', cell: {} }]); setDirty(true);
+  };
+  const hapus = i => { if (!confirm('Hapus jam ujian ini (untuk semua kelas)?')) return; setSlots(slots.filter((_, j) => j !== i)); setDirty(true); };
+
+  // Rekap & pemeriksaan
+  const dipakai = {}; TK.forEach(t => { dipakai[t] = {}; });
+  slots.forEach((s, i) => TK.forEach(t => { const k = s.cell[t] && s.cell[t].KodeMapel; if (k) (dipakai[t][k] = dipakai[t][k] || []).push(i); }));
+  const masalah = [];
+  slots.forEach((s, i) => {
+    const n = 'Baris ' + (i + 1) + ': ';
+    if (!s.Tanggal) masalah.push(n + 'tanggal belum diisi');
+    if (!s.JamMulai || !s.JamSelesai) masalah.push(n + 'jam belum lengkap');
+    else if (!(menit(s.JamMulai, s.JamSelesai) > 0)) masalah.push(n + 'jam selesai harus setelah jam mulai');
+    if (s.Tanggal && dayOf(s.Tanggal) === 0) masalah.push(n + 'tanggal jatuh pada hari Minggu');
+    slots.forEach((o, j) => {
+      if (j > i && o.Tanggal === s.Tanggal && o.Sesi === s.Sesi && s.JamMulai && o.JamMulai && menit(o.JamMulai, s.JamSelesai) > 0 && menit(s.JamMulai, o.JamSelesai) > 0)
+        masalah.push(`Baris ${i + 1} & ${j + 1}: jam bertabrakan pada tanggal yang sama`);
+    });
+  });
+  TK.forEach(t => Object.entries(dipakai[t]).forEach(([k, idx]) => { if (idx.length > 1) masalah.push(`Kelas ${t}: ${namaMapel[k] || k} terjadwal ${idx.length}× (baris ${idx.map(x => x + 1).join(', ')})`); }));
+  const belum = t => mapel.filter(m => m.Tingkat === t && !dipakai[t][m.Kode]);
+
+  const simpan = async () => {
+    if (masalah.some(m => /belum|harus|bertabrakan/.test(m)) && !confirm('Masih ada masalah pada jadwal:\n\n' + masalah.slice(0, 10).join('\n') + '\n\nTetap simpan?')) return;
+    setBusy(true);
+    try { await api('saveTable', { name: 'Jadwal', rows: slotsToRows(slots) }); notify('Jadwal tersimpan. Daftar hadir otomatis mengikuti.'); await load(); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+
+  const buatKerangka = () => {
+    const jam = gen.jam.split('\n').map(x => x.trim()).filter(Boolean).map(x => x.split(/\s*[-–]\s*/));
+    if (!gen.mulai) return notify('Isi tanggal mulai', 'err');
+    if (!jam.length || jam.some(j => j.length !== 2 || !(menit(j[0], j[1]) > 0))) return notify('Format jam salah. Contoh: 07:30-09:00 (satu baris satu jam)', 'err');
+    const perHari = jam.length;
+    const maks = Math.max(...TK.map(t => mapel.filter(m => m.Tingkat === t).length));
+    const jumlahHari = Math.ceil(maks / perHari);
+    if (slots.length && !confirm('Jadwal yang ada akan DIGANTI dengan kerangka baru. Lanjutkan?')) return;
+    const baru = []; let d = gen.mulai; let hari = 0;
+    while (hari < jumlahHari) {
+      const w = dayOf(d);
+      if (w !== 0 && (gen.sabtu || w !== 6)) { jam.forEach(([a, b]) => baru.push({ uid: Math.random(), Tanggal: d, JamMulai: a.padStart(5, '0'), JamSelesai: b.padStart(5, '0'), Sesi: '1', cell: {} })); hari++; }
+      d = addDays(d, 1);
+    }
+    // isi mapel berurutan (urutan menu Mapel)
+    TK.forEach(t => mapel.filter(m => m.Tingkat === t).forEach((m, k) => { if (baru[k]) baru[k].cell[t] = { KodeMapel: m.Kode }; }));
+    setSlots(baru); setDirty(true);
+    notify(`Kerangka ${jumlahHari} hari × ${perHari} jam dibuat & mapel diisi berurutan. Silakan sesuaikan lalu Simpan.`);
+  };
+
+  const ke = jamKe(slots);
+
+  if (view === 'cetak') {
+    const tanggal = [...new Set(slots.map(s => s.Tanggal))];
+    return (
+      <>
+        <div className="card no-print row">
+          <button className="btn" onClick={() => setView('edit')}>← Kembali</button>
+          <button className="btn primary" onClick={() => window.print()}>🖨 Cetak jadwal</button>
+          {dirty && <span style={{ color: 'var(--kuning)' }}>⚠ Ada perubahan belum disimpan</span>}
+        </div>
+        <div className="page">
+          <Kop s={st} />
+          <p className="judul-cetak">JADWAL {st.nama_ujian}</p>
+          <p className="sub-cetak">TAHUN PELAJARAN {st.tahun_pelajaran}</p>
+          <table className="dh">
+            <thead><tr><th style={{ width: '8mm' }}>No</th><th style={{ width: '38mm' }}>Hari / Tanggal</th><th style={{ width: '12mm' }}>Jam ke</th><th style={{ width: '26mm' }}>Waktu</th><th>Kelas X</th><th>Kelas XI</th><th>Kelas XII</th></tr></thead>
+            <tbody>
+              {tanggal.map((t, ti) => {
+                const ss = slots.filter(s => s.Tanggal === t);
+                return ss.map((s, k) => (
+                  <tr key={s.uid}>
+                    {k === 0 && <td rowSpan={ss.length} style={{ textAlign: 'center' }}>{ti + 1}</td>}
+                    {k === 0 && <td rowSpan={ss.length}>{fmtTanggal(t)}</td>}
+                    <td style={{ textAlign: 'center' }}>{ke(s)}</td>
+                    <td style={{ textAlign: 'center' }}>{s.JamMulai} – {s.JamSelesai}</td>
+                    {TK.map(x => <td key={x}>{namaMapel[s.cell[x] && s.cell[x].KodeMapel] || '–'}</td>)}
+                  </tr>
+                ));
+              })}
+            </tbody>
+          </table>
+          <p style={{ fontSize: '9pt' }}>Waktu dalam WITA. Peserta hadir 15 menit sebelum ulangan dimulai dan wajib membawa kartu peserta.</p>
+          <div className="dh-foot"><div /><div style={{ textAlign: 'center', minWidth: '65mm' }}>{st.kota}, ......................<br />Kepala Sekolah,<div className="sp" /><b><u>{st.kepala_sekolah}</u></b><br />NIP. {st.nip_kepsek}</div></div>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Buat kerangka jadwal otomatis <span className="hint">(opsional)</span></h3>
+        <div className="row" style={{ alignItems: 'flex-start' }}>
+          <label style={{ margin: 0 }}>Tanggal mulai<input type="date" value={gen.mulai} onChange={e => setGen({ ...gen, mulai: e.target.value })} style={{ width: 170 }} /></label>
+          <label style={{ margin: 0 }}>Jam ujian per hari (1 baris = 1 jam)<textarea rows="3" value={gen.jam} onChange={e => setGen({ ...gen, jam: e.target.value })} style={{ width: 170 }} /></label>
+          <div>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={gen.sabtu} onChange={e => setGen({ ...gen, sabtu: e.target.checked })} style={{ width: 'auto' }} /> Sabtu ikut ujian</label>
+            <button className="btn" onClick={buatKerangka}>⚡ Buat kerangka</button>
+          </div>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Hari Minggu otomatis dilewati. Mapel diisi berurutan sesuai menu Mapel. Setelah itu tinggal tukar mapel lewat pilihan di tabel. 18 mapel ÷ 3 jam = 6 hari.</p>
+      </div>
+
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+          <span className="muted">{slots.length} jam ujian · {new Set(slots.map(s => s.Tanggal)).size} hari</span>
+          <div className="row">
+            <button className="btn" onClick={() => setView('cetak')}>🖨 Lihat / cetak jadwal</button>
+            <button className="btn" onClick={tambah}>＋ Tambah jam ujian</button>
+            <button className="btn primary" onClick={simpan} disabled={!dirty || busy}>{busy ? 'Menyimpan…' : dirty ? '💾 Simpan jadwal' : '✓ Tersimpan'}</button>
+          </div>
+        </div>
+        <div className="tablewrap">
+          <table className="data">
+            <thead><tr><th>#</th><th>Tanggal</th><th>Jam ke</th><th>Mulai</th><th>Selesai</th>{st.jumlah_sesi > 1 && <th>Sesi</th>}<th>Kelas X</th><th>Kelas XI</th><th>Kelas XII</th><th></th></tr></thead>
+            <tbody>
+              {slots.map((s, i) => (
+                <tr key={s.uid} style={i > 0 && slots[i - 1].Tanggal !== s.Tanggal ? { borderTop: '3px solid #cbd5e1' } : null}>
+                  <td className="muted">{i + 1}</td>
+                  <td style={{ minWidth: 150 }}>
+                    <input type="date" value={s.Tanggal} onChange={e => upd(i, x => ({ ...x, Tanggal: e.target.value }))} />
+                    <div className="hint">{s.Tanggal ? HARI[dayOf(s.Tanggal)] : ''}</div>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>{s.Tanggal && s.JamMulai ? ke(s) : ''}</td>
+                  <td style={{ minWidth: 100 }}><input type="time" value={s.JamMulai} onChange={e => upd(i, x => ({ ...x, JamMulai: e.target.value }))} /></td>
+                  <td style={{ minWidth: 100 }}><input type="time" value={s.JamSelesai} onChange={e => upd(i, x => ({ ...x, JamSelesai: e.target.value }))} /><div className="hint">{menit(s.JamMulai, s.JamSelesai) > 0 ? menit(s.JamMulai, s.JamSelesai) + ' menit' : ''}</div></td>
+                  {st.jumlah_sesi > 1 && <td style={{ minWidth: 60 }}><input value={s.Sesi} onChange={e => upd(i, x => ({ ...x, Sesi: e.target.value }))} /></td>}
+                  {TK.map(t => {
+                    const v = (s.cell[t] && s.cell[t].KodeMapel) || '';
+                    const ganda = v && dipakai[t][v] && dipakai[t][v].length > 1;
+                    return (
+                      <td key={t} style={{ minWidth: 190 }}>
+                        <select value={v} onChange={e => setCell(i, t, e.target.value)} style={ganda ? { borderColor: 'var(--merah)', background: '#fef2f2' } : null}>
+                          <option value="">— kosong —</option>
+                          {mapel.filter(m => m.Tingkat === t).map(m => <option key={m.Kode} value={m.Kode}>{m.Nama}{dipakai[t][m.Kode] && m.Kode !== v ? ' ✓' : ''}</option>)}
+                        </select>
+                      </td>
+                    );
+                  })}
+                  <td><button className="btn sm danger" onClick={() => hapus(i)}>🗑</button></td>
+                </tr>
+              ))}
+              {!slots.length && <tr><td colSpan="10" className="muted" style={{ padding: 16 }}>Belum ada jadwal. Gunakan "Buat kerangka" atau "Tambah jam ujian".</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        <p className="hint">Tanda ✓ di pilihan = mapel sudah terjadwal di jam lain. Kotak merah = mapel terjadwal dua kali.</p>
+        {dirty && <p className="hint" style={{ color: 'var(--kuning)' }}>⚠ Ada perubahan yang belum disimpan.</p>}
+      </div>
+
+      <div className="grid stats">
+        {TK.map(t => {
+          const total = mapel.filter(m => m.Tingkat === t).length; const b = belum(t);
+          return (
+            <div className="stat" key={t}>
+              <span className="muted">Kelas {ROMAWI[t]}</span>
+              <b style={{ color: b.length ? 'var(--kuning)' : 'var(--hijau)' }}>{total - b.length} / {total}</b>
+              <span className="hint">{b.length ? 'Belum terjadwal: ' + b.map(m => m.Nama).join(', ') : '✓ Semua mapel terjadwal'}</span>
+            </div>
+          );
+        })}
+      </div>
+      {masalah.length > 0 && <div className="card" style={{ marginTop: 16 }}><b>Periksa:</b><ul style={{ margin: '6px 0 0' }}>{masalah.map((m, i) => <li key={i}>{m}</li>)}</ul></div>}
+    </>
+  );
+}
+
+/* ---------------- Bank Soal ---------------- */
+function SoalPage({ user }) {
+  const { notify } = useContext(Ctx);
+  const isAdmin = user.peran === 'admin';
+  const [list, setList] = useState(null);
+  const [fTingkat, setFTingkat] = useState('');
+  const [fStatus, setFStatus] = useState('');
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [uploadErr, setUploadErr] = useState(null);
+
+  const load = () => api('getPaketList').then(setList).catch(e => notify(e.message, 'err'));
+  useEffect(() => { load(); }, []);
+
+  const upload = async (p, f) => {
+    try {
+      const wb = await readXlsx(f);
+      const rows = sheetRows(wb, 'Soal', SOAL_KEYS);
+      if (!rows.length) throw new Error('Sheet "Soal" kosong');
+      if (!confirm(`Upload ${rows.length} soal untuk ${p.NamaMapel} kelas ${p.Tingkat}?\nSoal lama pada paket ini akan diganti.`)) return;
+      setBusy(p.KodeMapel);
+      const r = await api('uploadSoal', { kodeMapel: p.KodeMapel, rows });
+      notify(`✓ ${r.jumlah} soal tersimpan (total skor ${r.totalSkor})`);
+      load();
+    } catch (e) { setUploadErr({ mapel: p.NamaMapel + ' ' + p.Tingkat, msg: e.message }); }
+    finally { setBusy(''); }
+  };
+  const lihat = async p => {
+    setBusy(p.KodeMapel);
+    try { const d = await api('getSoal', { kodeMapel: p.KodeMapel }); setPreview({ p, ...d }); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(''); }
+  };
+  const status = async (p, s) => {
+    let catatan = '';
+    if (s === 'Dikembalikan') { catatan = prompt('Alasan dikembalikan ke guru:'); if (!catatan) return; }
+    else if (!confirm(`Ubah status ${p.NamaMapel} ${p.Tingkat} menjadi "${s}"?`)) return;
+    setBusy(p.KodeMapel);
+    try { await api('setStatusPaket', { kodeMapel: p.KodeMapel, status: s, catatan }); notify('Status: ' + s); load(); setPreview(null); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(''); }
+  };
+
+  if (!list) return <div className="card muted">Memuat paket soal…</div>;
+  const shown = list.filter(p => (!fTingkat || p.Tingkat === fTingkat) && (!fStatus || p.Status === fStatus));
+
+  const aksi = p => {
+    const b = busy === p.KodeMapel;
+    const s = p.Status;
+    const bisaUpload = isAdmin ? s !== 'Terkunci' : ['Belum Ada', 'Draft', 'Dikembalikan'].includes(s);
+    const ada = Number(p.JumlahSoal) > 0;
+    return (
+      <div className="row" style={{ gap: 4 }}>
+        {bisaUpload && <FilePick label="⬆ Upload" className="btn sm primary" disabled={b} onFile={f => upload(p, f)} />}
+        <button className="btn sm" onClick={() => downloadTemplateSoal(p.KodeMapel, p.NamaMapel + ' ' + p.Tingkat)} title="Template">⬇</button>
+        {ada && <button className="btn sm" disabled={b} onClick={() => lihat(p)}>👁 Lihat</button>}
+        {!isAdmin && ada && (s === 'Draft' || s === 'Dikembalikan') && <button className="btn sm success" disabled={b} onClick={() => status(p, 'Diajukan')}>Ajukan</button>}
+        {!isAdmin && s === 'Diajukan' && <button className="btn sm" disabled={b} onClick={() => status(p, 'Draft')}>Tarik</button>}
+        {isAdmin && ada && s !== 'Terkunci' && <button className="btn sm success" disabled={b} onClick={() => status(p, 'Terkunci')}>🔒 Kunci</button>}
+        {isAdmin && ada && (s === 'Diajukan' || s === 'Draft') && <button className="btn sm danger" disabled={b} onClick={() => status(p, 'Dikembalikan')}>Kembalikan</button>}
+        {isAdmin && s === 'Terkunci' && <button className="btn sm" disabled={b} onClick={() => status(p, 'Draft')}>Buka kunci</button>}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            <select value={fTingkat} onChange={e => setFTingkat(e.target.value)} style={{ width: 140 }}>
+              <option value="">Semua tingkat</option><option value="10">Kelas 10</option><option value="11">Kelas 11</option><option value="12">Kelas 12</option>
+            </select>
+            <select value={fStatus} onChange={e => setFStatus(e.target.value)} style={{ width: 160 }}>
+              <option value="">Semua status</option>{['Belum Ada', 'Draft', 'Diajukan', 'Dikembalikan', 'Terkunci'].map(s => <option key={s}>{s}</option>)}
+            </select>
+            <span className="muted">{shown.length} paket</span>
+          </div>
+          <button className="btn" onClick={() => downloadTemplateSoal('', '')}>⬇ Template soal</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>
+          Alur: <span className="badge b-abu">Belum Ada</span> → upload → <span className="badge b-biru">Draft</span> → guru ajukan → <span className="badge b-kuning">Diajukan</span> → admin periksa → <span className="badge b-hijau">Terkunci</span> (siap dipakai, tidak bisa diubah).
+        </p>
+      </div>
+      {!isAdmin && list.length === 0 && <div className="card">Belum ada mapel yang ditugaskan kepada Anda. Hubungi admin.</div>}
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0 }}>
+          <table className="data">
+            <thead><tr><th>Mapel</th><th>Kls</th>{isAdmin && <th>Guru</th>}<th>Soal</th><th>Skor</th><th>Status</th><th>Catatan</th><th>Aksi</th></tr></thead>
+            <tbody>
+              {shown.map(p => (
+                <tr key={p.KodeMapel}>
+                  <td><b>{p.NamaMapel}</b><div className="hint">{p.KodeMapel}</div></td>
+                  <td>{p.Tingkat}</td>
+                  {isAdmin && <td>{p.NamaGuru || <span className="badge b-merah">Belum ada</span>}</td>}
+                  <td>{p.JumlahSoal}</td>
+                  <td>{p.TotalSkor}</td>
+                  <td><span className={'badge ' + statusBadge(p.Status)}>{p.Status}</span></td>
+                  <td className="hint" style={{ maxWidth: 200 }}>{p.Catatan}</td>
+                  <td>{aksi(p)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {uploadErr && (
+        <Modal title={'Upload gagal — ' + uploadErr.mapel} onClose={() => setUploadErr(null)}>
+          <div className="err">{uploadErr.msg}</div>
+          <p className="hint">Perbaiki baris yang disebutkan di file Excel, lalu upload ulang. Nomor baris sesuai nomor baris di Excel.</p>
+        </Modal>
+      )}
+
+      {preview && (
+        <Modal wide title={`${preview.p.NamaMapel} — Kelas ${preview.p.Tingkat}`} onClose={() => setPreview(null)}>
+          <div className="row" style={{ marginBottom: 10 }}>
+            <span className={'badge ' + statusBadge(preview.p.Status)}>{preview.p.Status}</span>
+            <span className="muted">{preview.soal.length} soal · {Object.entries(preview.rekap).map(([k, v]) => `${k}: ${v}`).join(' · ')}</span>
+          </div>
+          {preview.soal.map(s => {
+            const kunci = String(s.Kunci).split(',');
+            return (
+              <div className="soal" key={s.No}>
+                <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <b>Soal {s.No}</b>
+                  <span><span className="badge b-biru">{s.Jenis}</span> <span className="hint">skor {s.Skor}</span></span>
+                </div>
+                <div className="q">{s.Pertanyaan}</div>
+                {s.Gambar && <img src={driveImg(s.Gambar)} alt="gambar soal" />}
+                {(s.Jenis === 'PG' || s.Jenis === 'PGK') && ['A', 'B', 'C', 'D', 'E'].filter(k => s[k]).map(k => (
+                  <div key={k} className={'opsi' + (kunci.includes(k) ? ' benar' : '')}>{k}. {s[k]} {kunci.includes(k) && '✓'}</div>
+                ))}
+                {s.Jenis === 'BS' && <div className="opsi benar">Kunci: {s.Kunci === 'B' ? 'BENAR' : 'SALAH'}</div>}
+                {s.Jenis === 'ISIAN' && <div className="opsi benar">Kunci: {String(s.Kunci).split('|').join('  /  ')}</div>}
+                {s.Jenis === 'URAIAN' && s.Kunci && <div className="opsi" style={{ background: '#f1f5f9' }}>Pedoman: {s.Kunci}</div>}
+              </div>
+            );
+          })}
+          {isAdmin && preview.p.Status !== 'Terkunci' && (
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <button className="btn danger" onClick={() => status(preview.p, 'Dikembalikan')}>Kembalikan ke guru</button>
+              <button className="btn success" onClick={() => status(preview.p, 'Terkunci')}>🔒 Setujui & kunci</button>
+            </div>
+          )}
+        </Modal>
+      )}
+    </>
+  );
+}
+
+/* ---------------- Cetak ---------------- */
+function useCetakData() {
+  const { notify } = useContext(Ctx);
+  const [d, setD] = useState(null);
+  useEffect(() => { api('getCetakData').then(setD).catch(e => notify(e.message, 'err')); }, []);
+  return d;
+}
+
+function Kop({ s }) {
+  if (s.kop_gambar) return <img src={driveImg(s.kop_gambar)} alt="Kop" style={{ width: '100%', display: 'block', marginBottom: '4mm' }} />;
+  return (
+    <div className="kop">
+      {s.logo_url ? <img src={driveImg(s.logo_url)} alt="" /> : <div style={{ width: '20mm' }} />}
+      <div className="t">
+        {s.kop_baris1 && <div className="s1">{s.kop_baris1}</div>}
+        {s.kop_baris2 && <div className="s1">{s.kop_baris2}</div>}
+        <div className="s2">{s.nama_sekolah}</div>
+        <div className="s3">{s.alamat}</div>
+      </div>
+      <div style={{ width: '20mm' }} />
+    </div>
+  );
+}
+
+function QR({ text }) {
+  const src = useMemo(() => { try { const q = qrcode(0, 'M'); q.addData(String(text)); q.make(); return q.createDataURL(4, 0); } catch (e) { return ''; } }, [text]);
+  return src ? <img className="qr" src={src} alt="QR" /> : null;
+}
+
+function KartuPage() {
+  const d = useCetakData();
+  const [fT, setFT] = useState('');
+  const [fR, setFR] = useState('');
+  const [urut, setUrut] = useState('kelas');
+  if (!d) return <div className="card muted">Memuat data cetak…</div>;
+  const s = d.settings;
+  const nRuang = Object.fromEntries(d.ruang.map(r => [r.Kode, r.Nama]));
+  let siswa = d.siswa.filter(x => (!fT || x.Tingkat === fT) && (!fR || x.Ruang === fR));
+  siswa = [...siswa].sort((a, b) => urut === 'kelas'
+    ? (a.Tingkat + a.NoPeserta).localeCompare(b.Tingkat + b.NoPeserta)
+    : (a.Sesi + a.Ruang + a.NoMeja).localeCompare(b.Sesi + b.Ruang + b.NoMeja));
+  const pages = chunk(siswa, 8);
+  return (
+    <>
+      <div className="card no-print">
+        <div className="row">
+          <select value={fT} onChange={e => setFT(e.target.value)} style={{ width: 140 }}><option value="">Semua tingkat</option><option value="10">Kelas 10</option><option value="11">Kelas 11</option><option value="12">Kelas 12</option></select>
+          <select value={fR} onChange={e => setFR(e.target.value)} style={{ width: 160 }}><option value="">Semua ruang</option>{d.ruang.map(r => <option key={r.Kode} value={r.Kode}>{r.Nama}</option>)}</select>
+          <select value={urut} onChange={e => setUrut(e.target.value)} style={{ width: 190 }}><option value="kelas">Urut per kelas</option><option value="ruang">Urut per ruang & meja</option></select>
+          <button className="btn primary" onClick={() => window.print()}>🖨 Cetak {siswa.length} kartu ({pages.length} lembar)</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Printer: kertas A4, skala 100% (jangan "Fit to page"), aktifkan "Background graphics". 8 kartu per lembar, gunting mengikuti garis. ⚠ Kartu berisi password — simpan dan bagikan langsung ke siswa.</p>
+      </div>
+      {pages.map((pg, i) => (
+        <div className="page" key={i}>
+          <div className="kartu-grid">
+            {pg.map(x => (
+              <div className="kartu" key={x.NoPeserta}>
+                <div className="kartu-head">
+                  {s.logo_url ? <img src={driveImg(s.logo_url)} alt="" /> : null}
+                  <div className="t">
+                    <div className="t1">KARTU PESERTA</div>
+                    <div>{s.nama_ujian} TP {s.tahun_pelajaran}</div>
+                    <div style={{ fontWeight: 700 }}>{s.nama_sekolah}</div>
+                  </div>
+                </div>
+                <div className="kartu-body">
+                  <div className="kartu-left">
+                    <div className="foto">Pas Foto<br />2 × 3</div>
+                    <QR text={x.Username} />
+                  </div>
+                  <div className="kartu-right">
+                    <table><tbody>
+                      <tr><td>No. Peserta</td><td>:</td><td><b>{x.NoPeserta}</b></td></tr>
+                      <tr><td>Nama</td><td>:</td><td><b>{x.Nama}</b></td></tr>
+                      <tr><td>Kelas</td><td>:</td><td>{x.Kelas || ROMAWI[x.Tingkat]}</td></tr>
+                      <tr><td>Ruang / Sesi</td><td>:</td><td>{nRuang[x.Ruang] || x.Ruang} / Sesi {x.Sesi} / Meja {x.NoMeja}</td></tr>
+                      <tr><td>Username</td><td>:</td><td className="cred">{x.Username}</td></tr>
+                      <tr><td>Password</td><td>:</td><td className="cred">{x.Password}</td></tr>
+                    </tbody></table>
+                    <div className="ttd-mini">
+                      Kepala Sekolah,<div className="sp" />
+                      <b><u>{s.kepala_sekolah}</u></b><br />NIP. {s.nip_kepsek}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ---------------- Berita Acara ---------------- */
+function terbilang(n) {
+  const a = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+  n = Math.floor(Number(n) || 0);
+  if (n < 12) return a[n];
+  if (n < 20) return terbilang(n - 10) + ' belas';
+  if (n < 100) return terbilang(Math.floor(n / 10)) + ' puluh' + (n % 10 ? ' ' + terbilang(n % 10) : '');
+  if (n < 200) return 'seratus' + (n - 100 ? ' ' + terbilang(n - 100) : '');
+  if (n < 1000) return terbilang(Math.floor(n / 100)) + ' ratus' + (n % 100 ? ' ' + terbilang(n % 100) : '');
+  if (n < 2000) return 'seribu' + (n - 1000 ? ' ' + terbilang(n - 1000) : '');
+  return terbilang(Math.floor(n / 1000)) + ' ribu' + (n % 1000 ? ' ' + terbilang(n % 1000) : '');
+}
+const kapital = t => String(t).replace(/\b\w/g, c => c.toUpperCase());
+
+function BeritaAcara({ s, j, r, peserta, namaMapel, jamKe }) {
+  const m = String(j.Tanggal).match(/^(\d{4})-(\d{2})-(\d{2})/) || [];
+  const tgl = m.length ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  const titik = n => '.'.repeat(n);
+  return (
+    <div className="page ba">
+      <Kop s={s} />
+      <p className="judul-cetak">BERITA ACARA PELAKSANAAN</p>
+      <p className="judul-cetak" style={{ fontSize: '11pt' }}>{s.nama_ujian}</p>
+      <p className="sub-cetak">TAHUN PELAJARAN {s.tahun_pelajaran}</p>
+
+      <p style={{ textAlign: 'justify', lineHeight: 1.6 }}>
+        Pada hari ini <b>{tgl ? HARI[tgl.getDay()] : '........'}</b> tanggal <b>{tgl ? kapital(terbilang(tgl.getDate())) : '........'}</b> bulan <b>{tgl ? BULAN[tgl.getMonth()] : '........'}</b> tahun <b>{tgl ? kapital(terbilang(tgl.getFullYear())) : '........'}</b>,
+        di <b>{s.nama_sekolah}</b> telah diselenggarakan {s.nama_ujian ? kapital(String(s.nama_ujian).toLowerCase()) : 'Ulangan Semester'} untuk
+        mata pelajaran <b>{namaMapel}</b> kelas <b>{ROMAWI[j.Tingkat] || j.Tingkat}</b>, dimulai pukul <b>{j.JamMulai}</b> sampai dengan pukul <b>{j.JamSelesai}</b> WITA.
+      </p>
+
+      <table className="ba-isi"><tbody>
+        <tr><td>1.</td><td>Ruang</td><td>: {r.Nama}</td></tr>
+        <tr><td></td><td>Sesi / Jam ke-</td><td>: {j.Sesi} / {jamKe}</td></tr>
+        <tr><td></td><td>Jumlah peserta seharusnya</td><td>: <b>{peserta.length}</b> orang ({terbilang(peserta.length)})</td></tr>
+        <tr><td></td><td>Jumlah peserta hadir</td><td>: {titik(10)} orang</td></tr>
+        <tr><td></td><td>Jumlah peserta tidak hadir</td><td>: {titik(10)} orang</td></tr>
+        <tr><td></td><td style={{ verticalAlign: 'top' }}>Nomor peserta tidak hadir</td><td>: {titik(85)}<br />&nbsp;&nbsp;{titik(85)}</td></tr>
+        <tr><td style={{ paddingTop: '3mm' }}>2.</td><td colSpan="2" style={{ paddingTop: '3mm' }}>Catatan selama pelaksanaan ulangan (gangguan listrik/jaringan, pelanggaran tata tertib, dll.):</td></tr>
+      </tbody></table>
+      <div className="ba-catatan">{[1, 2, 3, 4, 5].map(i => <div key={i} />)}</div>
+
+      <p style={{ margin: '4mm 0 2mm' }}>Yang membuat berita acara:</p>
+      <table className="dh ba-ttd">
+        <thead><tr><th style={{ width: '8mm' }}>No</th><th style={{ width: '28mm' }}>Jabatan</th><th>Nama</th><th style={{ width: '38mm' }}>NIP</th><th style={{ width: '38mm' }}>Tanda Tangan</th></tr></thead>
+        <tbody>
+          <tr><td style={{ textAlign: 'center' }}>1</td><td>Pengawas</td><td></td><td></td><td>1.</td></tr>
+          <tr><td style={{ textAlign: 'center' }}>2</td><td>Proktor</td><td></td><td></td><td style={{ textAlign: 'right' }}>2.</td></tr>
+        </tbody>
+      </table>
+
+      <div className="dh-foot">
+        <div style={{ fontSize: '8.5pt', maxWidth: '95mm' }}>
+          Catatan:<br />
+          • Berita acara dibuat rangkap 2 (arsip sekolah & panitia).<br />
+          • Dilampiri daftar hadir peserta ruang ini.
+        </div>
+        <div style={{ textAlign: 'center', minWidth: '65mm' }}>
+          Mengetahui,<br />Kepala Sekolah,
+          <div className="sp" />
+          <b><u>{s.kepala_sekolah}</u></b><br />NIP. {s.nip_kepsek}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DaftarHadirPage({ awal = 'hadir' }) {
+  const d = useCetakData();
+  const [jenis, setJenis] = useState(awal);
+  const [tgl, setTgl] = useState('');
+  const [jam, setJam] = useState('');
+  const [kls, setKls] = useState('');
+  if (!d) return <div className="card muted">Memuat data cetak…</div>;
+  const s = d.settings;
+  const mapel = Object.fromEntries(d.mapel.map(m => [m.Kode, m.Nama]));
+  const tanggalList = [...new Set(d.jadwal.map(j => j.Tanggal))].sort();
+  const ke = jamKe(jadwalToSlots(d.jadwal));
+  const jamList = [...new Set(d.jadwal.filter(j => j.Tanggal === tgl).map(j => j.JamMulai + '–' + j.JamSelesai))].sort();
+  const jadwal = d.jadwal.filter(j => (!tgl || j.Tanggal === tgl) && (!tgl || !jam || j.JamMulai + '–' + j.JamSelesai === jam) && (!kls || j.Tingkat === kls))
+    .sort((a, b) => (a.Tanggal + a.Sesi + a.JamMulai + a.Tingkat).localeCompare(b.Tanggal + b.Sesi + b.JamMulai + b.Tingkat));
+  const ruang = [...d.ruang].sort((a, b) => a.Kode.localeCompare(b.Kode));
+
+  // satu lembar = satu jadwal (mapel+tingkat) × satu ruang
+  const lembar = [];
+  jadwal.forEach(j => ruang.forEach(r => {
+    const peserta = d.siswa.filter(x => x.Tingkat === j.Tingkat && x.Ruang === r.Kode && String(x.Sesi) === String(j.Sesi))
+      .sort((a, b) => a.NoPeserta.localeCompare(b.NoPeserta));
+    if (peserta.length) lembar.push({ j, r, peserta });
+  }));
+  lembar.sort((a, b) => (a.j.Tanggal + a.j.JamMulai + a.j.Sesi + a.r.Kode).localeCompare(b.j.Tanggal + b.j.JamMulai + b.j.Sesi + b.r.Kode));
+
+  return (
+    <>
+      <div className="card no-print">
+        <div className="row">
+          <select value={tgl} onChange={e => { setTgl(e.target.value); setJam(''); }} style={{ width: 240 }}>
+            <option value="">Semua tanggal</option>
+            {tanggalList.map(t => <option key={t} value={t}>{fmtTanggal(t)}</option>)}
+          </select>
+          {tgl && <select value={jam} onChange={e => setJam(e.target.value)} style={{ width: 200 }}>
+            <option value="">Semua jam</option>
+            {jamList.map((j, i) => <option key={j} value={j}>Jam ke-{i + 1} ({j})</option>)}
+          </select>}
+          <select value={kls} onChange={e => setKls(e.target.value)} style={{ width: 150 }}>
+            <option value="">Semua kelas</option>{TK.map(t => <option key={t} value={t}>Kelas {ROMAWI[t]}</option>)}
+          </select>
+          <select value={jenis} onChange={e => setJenis(e.target.value)} style={{ width: 250 }}>
+            <option value="hadir">Daftar Hadir</option>
+            <option value="ba">Berita Acara</option>
+            <option value="dua">Daftar Hadir + Berita Acara</option>
+          </select>
+          <button className="btn primary" onClick={() => window.print()} disabled={!lembar.length}>🖨 Cetak {jenis === 'dua' ? lembar.length * 2 : lembar.length} lembar</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Data diambil langsung dari menu <b>Jadwal</b> — jika jadwal diubah, daftar hadir ikut berubah. Satu lembar per ruang per mapel. Pilihan "Daftar Hadir + Berita Acara" mencetak keduanya berurutan per ruang, jadi siap dimasukkan ke amplop pengawas. Jika lembar kosong, periksa menu Jadwal & pembagian ruang siswa.</p>
+      </div>
+      {!lembar.length && <div className="card">Belum ada daftar hadir. Pastikan jadwal sudah diisi dan siswa sudah dibagi ruang.</div>}
+      {lembar.map(({ j, r, peserta }, i) => (
+        <React.Fragment key={i}>
+        {jenis !== 'ba' && <div className="page">
+          <Kop s={s} />
+          <p className="judul-cetak">DAFTAR HADIR PESERTA</p>
+          <p className="sub-cetak">{s.nama_ujian} TAHUN PELAJARAN {s.tahun_pelajaran}</p>
+          <table className="info-cetak"><tbody>
+            <tr><td>Hari / Tanggal</td><td>: {fmtTanggal(j.Tanggal)}</td><td style={{ paddingLeft: '12mm' }}>Ruang</td><td>: {r.Nama}</td></tr>
+            <tr><td>Mata Pelajaran</td><td>: <b>{mapel[j.KodeMapel] || j.KodeMapel}</b></td><td style={{ paddingLeft: '12mm' }}>Sesi</td><td>: {j.Sesi}</td></tr>
+            <tr><td>Kelas</td><td>: {ROMAWI[j.Tingkat] || j.Tingkat}</td><td style={{ paddingLeft: '12mm' }}>Waktu</td><td>: Jam ke-{ke({ Tanggal: j.Tanggal, JamMulai: j.JamMulai })}, {j.JamMulai} – {j.JamSelesai} WITA</td></tr>
+          </tbody></table>
+          <table className="dh">
+            <thead>
+              <tr><th style={{ width: '8mm' }}>No</th><th style={{ width: '22mm' }}>No. Peserta</th><th>Nama Peserta</th><th style={{ width: '12mm' }}>Kelas</th><th colSpan="2">Tanda Tangan</th><th style={{ width: '14mm' }}>Ket.</th></tr>
+            </thead>
+            <tbody>
+              {peserta.map((x, k) => {
+                const n = k + 1;
+                return (
+                  <tr key={x.NoPeserta}>
+                    <td style={{ textAlign: 'center' }}>{n}</td>
+                    <td style={{ textAlign: 'center' }}>{x.NoPeserta}</td>
+                    <td>{x.Nama}</td>
+                    <td style={{ textAlign: 'center' }}>{x.Kelas || ROMAWI[x.Tingkat]}</td>
+                    <td className="ttd">{n % 2 === 1 ? n + '.' : ''}</td>
+                    <td className="ttd">{n % 2 === 0 ? n + '.' : ''}</td>
+                    <td></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="dh-foot">
+            <div>
+              <table className="info-cetak"><tbody>
+                <tr><td>Jumlah peserta seharusnya</td><td>: <b>{peserta.length}</b> orang</td></tr>
+                <tr><td>Jumlah peserta hadir</td><td>: ........ orang</td></tr>
+                <tr><td>Jumlah peserta tidak hadir</td><td>: ........ orang</td></tr>
+              </tbody></table>
+              <div className="hint" style={{ color: '#000', fontSize: '8.5pt' }}>Ket: S = Sakit, I = Izin, A = Tanpa keterangan</div>
+            </div>
+            <div style={{ textAlign: 'center', minWidth: '65mm' }}>
+              {s.kota}, {fmtTanggal(j.Tanggal, false)}<br />Pengawas,
+              <div className="sp" />
+              (.......................................................)<br />
+              <div style={{ textAlign: 'left', marginTop: '1mm' }}>NIP.</div>
+            </div>
+          </div>
+        </div>}
+        {jenis !== 'hadir' && <BeritaAcara s={s} j={j} r={r} peserta={peserta} namaMapel={mapel[j.KodeMapel] || j.KodeMapel} jamKe={ke({ Tanggal: j.Tanggal, JamMulai: j.JamMulai })} />}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
+
+/* ---------------- Pengaturan ---------------- */
+const SETTING_FIELDS = [
+  ['nama_ujian', 'Nama ulangan (judul)'], ['tahun_pelajaran', 'Tahun pelajaran'], ['semester', 'Semester'],
+  ['kop_baris1', 'Kop baris 1 (opsional)'], ['kop_baris2', 'Kop baris 2 (opsional)'],
+  ['nama_sekolah', 'Nama sekolah'], ['alamat', 'Alamat sekolah'], ['kota', 'Kota (tempat tanda tangan)'],
+  ['logo_url', 'Link logo sekolah (Google Drive / URL gambar)'],
+  ['kop_gambar', 'Link GAMBAR KOP utuh (opsional, menggantikan kop teks di daftar hadir)'], ['kepala_sekolah', 'Nama kepala sekolah'], ['nip_kepsek', 'NIP kepala sekolah']
+];
+function PengaturanPage() {
+  const { notify } = useContext(Ctx);
+  const [s, setS] = useState(null);
+  const [pw, setPw] = useState({ lama: '', baru: '', ulang: '' });
+  useEffect(() => { api('getSettings').then(setS).catch(e => notify(e.message, 'err')); }, []);
+  if (!s) return <div className="card muted">Memuat…</div>;
+  const save = async () => {
+    try { const o = {}; SETTING_FIELDS.forEach(([k]) => { o[k] = s[k] || ''; }); setS(await api('saveSettings', { settings: o })); notify('Pengaturan tersimpan'); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+  const gantiPw = async e => {
+    e.preventDefault();
+    if (pw.baru !== pw.ulang) return notify('Ulangi password tidak sama', 'err');
+    try { await api('changeAdminPassword', { lama: pw.lama, baru: pw.baru }); setPw({ lama: '', baru: '', ulang: '' }); notify('Password admin diganti'); }
+    catch (x) { notify(x.message, 'err'); }
+  };
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', alignItems: 'start' }}>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Data sekolah & kop</h3>
+        {SETTING_FIELDS.map(([k, l]) => <label key={k}>{l}<input value={s[k] || ''} onChange={e => setS({ ...s, [k]: e.target.value })} /></label>)}
+        {s.logo_url && <img src={driveImg(s.logo_url)} alt="logo" style={{ height: 60, marginBottom: 10 }} />}
+        {s.kop_gambar && <div style={{ marginBottom: 10 }}><div className="hint">Pratinjau kop:</div><img src={driveImg(s.kop_gambar)} alt="kop" style={{ width: '100%', border: '1px solid #e2e8f0' }} /></div>}
+        <button className="btn primary" onClick={save}>💾 Simpan</button>
+      </div>
+      <div>
+        <form className="card" onSubmit={gantiPw}>
+          <h3 style={{ marginTop: 0 }}>Ganti password admin</h3>
+          <label>Password lama<input type="password" value={pw.lama} onChange={e => setPw({ ...pw, lama: e.target.value })} required /></label>
+          <label>Password baru (min. 8 karakter)<input type="password" value={pw.baru} onChange={e => setPw({ ...pw, baru: e.target.value })} required minLength={8} /></label>
+          <label>Ulangi password baru<input type="password" value={pw.ulang} onChange={e => setPw({ ...pw, ulang: e.target.value })} required /></label>
+          <button className="btn primary">Ganti password</button>
+        </form>
+        {!API_URL && (
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Server</h3>
+            <p className="hint" style={{ wordBreak: 'break-all' }}>{getApiUrl()}</p>
+            <p className="hint">Untuk keamanan, tempel URL ini ke konstanta <code>API_URL</code> di index.html agar tidak perlu diisi di setiap perangkat.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Uji Server (simulasi pengguna serentak) ---------------- */
+function UjiServerPage() {
+  const [n, setN] = useState(63);
+  const [mode, setMode] = useState('serentak');
+  const [run, setRun] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const mulai = async () => {
+    const total = Math.min(150, Math.max(1, Number(n) || 63));
+    const st = { done: 0, total, ok: 0, okRetry: 0, fail: 0, lat: [], server: [], err: {}, t0: Date.now(), mode };
+    setBusy(true); setRun({ ...st });
+    const satu = async k => {
+      if (mode === 'bertahap') await sleep(Math.random() * 20000);
+      const t = performance.now();
+      try {
+        const r = await callApi('ujiBeban', { n: k }, { silent: true });
+        st.lat.push(performance.now() - t); st.server.push(r.data.ms);
+        if (r.tries > 1) st.okRetry++; else st.ok++;
+      } catch (e) { st.fail++; st.err[e.message] = (st.err[e.message] || 0) + 1; }
+      st.done++; setRun({ ...st });
+    };
+    await Promise.all(Array.from({ length: total }, (_, k) => satu(k + 1)));
+    st.t1 = Date.now(); setRun({ ...st }); setBusy(false);
+  };
+
+  const ringkas = arr => {
+    if (!arr.length) return { avg: 0, p95: 0, max: 0 };
+    const s = [...arr].sort((a, b) => a - b);
+    return { avg: s.reduce((a, b) => a + b, 0) / s.length, p95: s[Math.min(s.length - 1, Math.floor(s.length * 0.95))], max: s[s.length - 1] };
+  };
+  const det = x => (x / 1000).toFixed(1).replace('.', ',') + ' dtk';
+  const L = run ? ringkas(run.lat) : null;
+  const S = run ? ringkas(run.server) : null;
+  const selesai = run && run.done === run.total;
+  let vonis = null;
+  if (selesai) {
+    const lambat = L.p95 > 15000 ? ` Namun 5% siswa menunggu lebih dari ${det(L.p95)} — sebaiknya login dibuat bertahap per ruang.` : '';
+    if (run.fail === 0 && run.okRetry === 0) vonis = ['ok', '✅ AMAN — semua permintaan berhasil di percobaan pertama.' + lambat];
+    else if (run.fail === 0) vonis = ['ok', `✅ AMAN — semua berhasil. ${run.okRetry} permintaan sempat ditolak karena server penuh, lalu berhasil lewat coba-ulang otomatis (siswa hanya menunggu sedikit lebih lama).` + lambat];
+    else vonis = ['err', `⚠ ${run.fail} dari ${run.total} gagal walau sudah dicoba ulang ±45 detik. Gunakan pola login bertahap per ruang, periksa internet sekolah, lalu uji lagi.`];
+  }
+
+  return (
+    <>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Simulasi siswa membuka aplikasi bersamaan</h3>
+        <p className="hint" style={{ marginTop: 0 }}>Setiap "siswa tiruan" melakukan hal yang sama seperti saat ulangan: cek sesi login, mengambil data & soal, lalu menyimpan 40 jawaban sementara. Tidak ada data asli yang diubah.</p>
+        <div className="row">
+          <label style={{ margin: 0 }}>Jumlah siswa tiruan<input type="number" min="1" max="150" value={n} onChange={e => setN(e.target.value)} style={{ width: 110 }} /></label>
+          <label style={{ margin: 0 }}>Pola
+            <select value={mode} onChange={e => setMode(e.target.value)} style={{ width: 300 }}>
+              <option value="serentak">Serentak — semua di detik yang sama (terberat)</option>
+              <option value="bertahap">Bertahap — tersebar dalam 20 detik (seperti login nyata)</option>
+            </select>
+          </label>
+          <button className="btn primary" onClick={mulai} disabled={busy}>{busy ? `Menguji… ${run ? run.done : 0}/${run ? run.total : n}` : '▶ Mulai uji'}</button>
+        </div>
+      </div>
+
+      {run && (
+        <div className="card">
+          <div style={{ height: 10, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{ height: '100%', width: (run.done / run.total * 100) + '%', background: run.fail ? 'var(--kuning)' : 'var(--hijau)', transition: 'width .2s' }} />
+          </div>
+          <div className="grid stats">
+            <div className="stat"><span className="muted">Berhasil langsung</span><b style={{ color: 'var(--hijau)' }}>{run.ok}</b></div>
+            <div className="stat"><span className="muted">Berhasil setelah coba ulang</span><b style={{ color: 'var(--kuning)' }}>{run.okRetry}</b></div>
+            <div className="stat"><span className="muted">Gagal</span><b style={{ color: run.fail ? 'var(--merah)' : 'inherit' }}>{run.fail}</b></div>
+            <div className="stat"><span className="muted">Waktu tunggu siswa</span><b>{det(L.avg)}</b><span className="hint">rata-rata · 95%: {det(L.p95)} · terlama: {det(L.max)}</span></div>
+            <div className="stat"><span className="muted">Waktu kerja server</span><b>{Math.round(S.avg)} ms</b><span className="hint">terlama {Math.round(S.max)} ms</span></div>
+          </div>
+          {vonis && <div className={vonis[0]} style={{ marginTop: 14, fontSize: 14 }}>{vonis[1]}{selesai && <> Total {det(run.t1 - run.t0)} untuk {run.total} siswa ({run.mode}).</>}</div>}
+          {Object.keys(run.err).length > 0 && <div className="err">{Object.entries(run.err).map(([k, v]) => `${v}× ${k}`).join('\n')}</div>}
+        </div>
+      )}
+
+      <div className="card hint">
+        <b>Cara membaca hasil:</b> "Waktu kerja server" yang kecil (puluhan–ratusan ms) berarti cache bekerja. "Waktu tunggu siswa" sudah termasuk internet & antrean Google.
+        Uji dari satu perangkat sedikit lebih ringan daripada 63 HP sungguhan, jadi lakukan juga <b>gladi bersih</b> dengan siswa sebelum hari H.
+        Uji sebaiknya di jaringan sekolah yang akan dipakai saat ulangan.
+      </div>
+    </>
+  );
+}
+
+/* ---------------- App ---------------- */
+const MENU = {
+  admin: [
+    ['sec', 'Utama'], ['dashboard', '🏠 Dashboard'],
+    ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
+    ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
+    ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
+    ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
+  ],
+  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya']]
+};
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)' };
+
+function App() {
+  const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
+  const [page, setPage] = useState('');
+  const [toast, setToast] = useState(null);
+  const [retry, setRetry] = useState(null);
+  const [open, setOpen] = useState(false);
+  const notify = (msg, type = 'ok') => { setToast({ msg, type }); clearTimeout(window.__t); window.__t = setTimeout(() => setToast(null), type === 'err' ? 7000 : 3500); };
+
+  useEffect(() => {
+    const h = () => setUser(null);
+    window.addEventListener('sesi-habis', h);
+    const r1 = e => setRetry(e.detail), r2 = () => setRetry(null);
+    window.addEventListener('api-retry', r1); window.addEventListener('api-ok', r2);
+    return () => { window.removeEventListener('sesi-habis', h); window.removeEventListener('api-retry', r1); window.removeEventListener('api-ok', r2); };
+  }, []);
+  useEffect(() => { if (user) setPage(p => p || (user.peran === 'admin' ? 'dashboard' : 'soal')); }, [user]);
+
+  const logout = async () => {
+    try { await api('logout'); } catch (e) { }
+    localStorage.removeItem('us_token'); localStorage.removeItem('us_user'); setUser(null); setPage('');
+  };
+  const go = p => { setPage(p); setOpen(false); window.scrollTo(0, 0); };
+
+  if (!user) return <Ctx.Provider value={{ notify }}><Login onLogin={u => { setUser(u); setPage(''); }} />{toast && <div className={'toast ' + toast.type}>{toast.msg}</div>}{retry && <div className="retry-bar no-print">⏳ Server sedang sibuk — mencoba lagi otomatis ({retry.i}/{retry.max})…</div>}</Ctx.Provider>;
+
+  const pages = {
+    dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />
+  };
+  const allowed = MENU[user.peran].map(m => m[0]);
+
+  return (
+    <Ctx.Provider value={{ notify, user }}>
+      <div className="layout">
+        <aside className={'sidebar no-print' + (open ? ' open' : '')}>
+          <div className="brand"><b>📝 Ulangan Semester</b><small>{user.nama} · {user.peran}</small></div>
+          <nav>
+            {MENU[user.peran].map(([k, l], i) => k === 'sec'
+              ? <div className="sec" key={i}>{l}</div>
+              : <button key={k} className={page === k ? 'active' : ''} onClick={() => go(k)}>{l}</button>)}
+            <div className="sec">Akun</div>
+            <button onClick={logout}>🚪 Keluar</button>
+          </nav>
+        </aside>
+        <main className="main">
+          <div className="topbar">
+            <div className="row"><button className="btn menu-btn" onClick={() => setOpen(!open)}>☰</button><h2>{TITLE[page]}</h2></div>
+          </div>
+          {allowed.includes(page) ? <div key={page}>{pages[page]}</div> : null}
+        </main>
+      </div>
+      {toast && <div className={'toast ' + toast.type}>{toast.msg}</div>}
+      {retry && <div className="retry-bar no-print">⏳ Server sedang sibuk — mencoba lagi otomatis ({retry.i}/{retry.max})…</div>}
+    </Ctx.Provider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
