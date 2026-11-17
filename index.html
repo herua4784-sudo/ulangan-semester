@@ -135,7 +135,7 @@
    KONFIGURASI — tempel URL Web App Apps Script di bawah ini.
    Jika dibiarkan kosong, URL bisa diisi di halaman login.
 ================================================================ */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwfPCl63HEf9TSW5FFqjlBn64R6_i6vcSHupUmovI_3IcdrNxlgYdE62fEGbNat2UHT/exec';
+const API_URL = '';
 
 const { useState, useEffect, useMemo, useContext, useRef, createContext } = React;
 const Ctx = createContext({});
@@ -447,8 +447,8 @@ function Dashboard({ go }) {
   const langkah = [
     ['Isi data sekolah & ganti password admin', 'pengaturan'],
     ['Import data siswa (atau edit data contoh)', 'siswa'],
-    ['Isi data guru & buat akun guru', 'guru'],
-    ['Tentukan guru pengampu tiap mapel', 'mapel'],
+    ['Import data guru + mapel yang diampu (akun otomatis)', 'guru'],
+    ['Periksa guru pengampu tiap mapel', 'mapel'],
     ['Atur ruang & jadwal ulangan', 'jadwal'],
     ['Guru upload soal → admin verifikasi & kunci', 'soal'],
     ['Cetak kartu peserta & daftar hadir', 'kartu'],
@@ -559,16 +559,67 @@ function SiswaPage() {
 }
 
 /* ---------------- Guru ---------------- */
+async function downloadTemplateGuru() {
+  let mapel = [];
+  try { mapel = (await api('getTable', { name: 'Mapel' })).rows; } catch (e) { }
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Kode', 'Nama', 'NIP', 'Mengampu'],
+    ['G01', 'Contoh: Nama Guru Matematika, S.Pd.', '198501012010011001', 'MTK10,MTK11,MTK12'],
+    ['G02', 'Contoh: Nama Guru B. Indonesia, S.Pd.', '', 'BIND10,BIND11,BIND12']
+  ]);
+  ws['!cols'] = [{ wch: 8 }, { wch: 38 }, { wch: 22 }, { wch: 40 }];
+  const dm = XLSX.utils.aoa_to_sheet([['Kode', 'Nama Mapel', 'Kelas'], ...mapel.map(m => [m.Kode, m.Nama, m.Tingkat])]);
+  dm['!cols'] = [{ wch: 10 }, { wch: 34 }, { wch: 7 }];
+  const pt = XLSX.utils.aoa_to_sheet([
+    ['PETUNJUK TEMPLATE GURU'], [''],
+    ['1. Hapus 2 contoh, isi satu baris per guru di sheet "Guru". Jangan ubah judul kolom.'],
+    ['2. Kode: kode unik guru, mis. G01, G02. Username login = kode huruf kecil (g01).'],
+    ['3. NIP boleh dikosongkan.'],
+    ['4. Mengampu: kode mapel yang diajar, pisahkan dengan koma, mis. MTK10,MTK11,MTK12. Kode ada di sheet "Daftar Mapel".'],
+    ['5. Satu mapel per kelas hanya boleh punya satu guru pengampu.'],
+    ['6. Guru yang sudah ada (kode sama) hanya diperbarui; password lamanya tidak berubah.'],
+    ['7. Guru baru otomatis dibuatkan password. Daftar akun tampil SEKALI setelah import — langsung unduh.']
+  ]);
+  pt['!cols'] = [{ wch: 110 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Guru');
+  XLSX.utils.book_append_sheet(wb, dm, 'Daftar Mapel');
+  XLSX.utils.book_append_sheet(wb, pt, 'Petunjuk');
+  XLSX.writeFile(wb, 'Template_Guru.xlsx');
+}
+
 function GuruPage() {
   const { notify } = useContext(Ctx);
   const [akun, setAkun] = useState(null);
+  const [hasil, setHasil] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [key, setKey] = useState(0);
+  const alamat = location.href.split('#')[0];
   const reset = async (r, dirty) => {
     if (dirty) return notify('Simpan perubahan tabel dulu', 'err');
     if (!r.Kode) return notify('Isi kode guru dulu', 'err');
     if (!confirm('Buat password baru untuk ' + r.Nama + '?')) return;
     try { const a = await api('resetPasswordGuru', { kode: r.Kode }); setAkun({ ...a, nama: r.Nama }); setKey(k => k + 1); }
     catch (e) { notify(e.message, 'err'); }
+  };
+  const importFile = async f => {
+    try {
+      const wb = await readXlsx(f);
+      const rows = sheetRows(wb, 'Guru', ['Kode', 'Nama', 'NIP', 'Mengampu']).filter(r => r.Kode || r.Nama);
+      if (!rows.length) throw new Error('Tidak ada data guru di sheet "Guru"');
+      if (!confirm(`Import ${rows.length} guru?\n\nGuru dengan kode yang sudah ada akan diperbarui (password lama tetap). Guru baru dibuatkan password.`)) return;
+      setBusy(true);
+      const r = await api('importGuru', { rows });
+      setHasil(r); setKey(k => k + 1);
+      notify(`${r.jumlah} guru tersimpan, ${r.mapel} mapel terisi pengampunya`);
+    } catch (e) { setHasil({ error: e.message }); }
+    finally { setBusy(false); }
+  };
+  const unduhAkun = list => {
+    const ws = XLSX.utils.aoa_to_sheet([['Kode', 'Nama', 'Username', 'Password', 'Alamat aplikasi'], ...list.map(a => [a.Kode, a.Nama, a.Username, a.Password, alamat])]);
+    ws['!cols'] = [{ wch: 8 }, { wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 50 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Akun Guru');
+    XLSX.writeFile(wb, 'Akun_Guru_RAHASIA.xlsx');
   };
   const cols = [
     { key: 'Kode', width: 80 }, { key: 'Nama', width: 220 }, { key: 'NIP', width: 160 },
@@ -577,7 +628,15 @@ function GuruPage() {
   ];
   return (
     <>
-      <div className="card hint">Isi Kode (mis. G01) & nama guru → Simpan → klik <b>🔑 Password</b> untuk membuat akun. Password hanya tampil sekali, catat & berikan langsung ke guru.</div>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Import guru & mapel yang diampu</h3>
+        <div className="row">
+          <button className="btn" onClick={downloadTemplateGuru}>⬇ Download template Excel</button>
+          <FilePick label={busy ? 'Mengimpor…' : '⬆ Import dari Excel'} className="btn primary" onFile={importFile} disabled={busy} />
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Kolom: Kode, Nama, NIP, Mengampu (kode mapel dipisah koma, mis. <code>MTK10,MTK11,MTK12</code>). Sekali import: data guru tersimpan, <b>Guru Pengampu di menu Mapel terisi otomatis</b>, dan guru baru langsung dibuatkan password. Template berisi sheet "Daftar Mapel" dengan semua kode mapel.</p>
+      </div>
+      <div className="card hint">Atau isi manual: Kode (mis. G01) & nama guru → Simpan → klik <b>🔑 Password</b>. Password hanya tampil sekali, catat & berikan langsung ke guru.</div>
       <TableEditor name="Guru" columns={cols} reloadKey={key}
         rowActions={(r, dirty) => <button className="btn sm" onClick={() => reset(r, dirty)}>🔑 Password</button>} />
       {akun && (
@@ -586,10 +645,34 @@ function GuruPage() {
           <table className="data" style={{ maxWidth: 360 }}><tbody>
             <tr><td>Username</td><td className="cred">{akun.username}</td></tr>
             <tr><td>Password</td><td className="cred">{akun.password}</td></tr>
-            <tr><td>Alamat</td><td>{location.href.split('#')[0]}</td></tr>
+            <tr><td>Alamat</td><td>{alamat}</td></tr>
           </tbody></table>
           <p className="hint">Password ini tidak akan ditampilkan lagi. Jika lupa, buat password baru.</p>
-          <button className="btn" onClick={() => navigator.clipboard.writeText(`Akun Ulangan Semester\nAlamat: ${location.href.split('#')[0]}\nUsername: ${akun.username}\nPassword: ${akun.password}`).then(() => notify('Tersalin'))}>📋 Salin</button>
+          <button className="btn" onClick={() => navigator.clipboard.writeText(`Akun Ulangan Semester\nAlamat: ${alamat}\nUsername: ${akun.username}\nPassword: ${akun.password}`).then(() => notify('Tersalin'))}>📋 Salin</button>
+        </Modal>
+      )}
+      {hasil && (
+        <Modal wide title={hasil.error ? 'Import guru gagal' : 'Import guru selesai'} onClose={() => { if (hasil.baru && hasil.baru.length && !hasil.diunduh && !confirm('Daftar password guru baru belum diunduh dan TIDAK bisa ditampilkan lagi. Tetap tutup?')) return; setHasil(null); }}>
+          {hasil.error ? (
+            <><div className="err">{hasil.error}</div><p className="hint">Perbaiki baris yang disebut di file Excel, lalu import ulang. Tidak ada data yang tersimpan.</p></>
+          ) : (
+            <>
+              <div className="ok">✓ {hasil.jumlah} guru tersimpan · {hasil.mapel} mapel terisi guru pengampu{hasil.tanpaGuru ? ` · ${hasil.tanpaGuru} mapel masih tanpa guru (lihat menu Mapel)` : ' · semua mapel sudah ada pengampunya'}</div>
+              {hasil.baru.length > 0 ? (
+                <>
+                  <p><b>{hasil.baru.length} akun baru.</b> Password di bawah hanya tampil <b>sekali</b> — unduh sekarang, lalu bagikan langsung ke masing-masing guru.</p>
+                  <div className="row" style={{ marginBottom: 10 }}>
+                    <button className="btn primary" onClick={() => { unduhAkun(hasil.baru); setHasil({ ...hasil, diunduh: true }); }}>⬇ Unduh daftar akun (Excel)</button>
+                    <button className="btn" onClick={() => navigator.clipboard.writeText(hasil.baru.map(a => `${a.Nama}\nAlamat: ${alamat}\nUsername: ${a.Username}\nPassword: ${a.Password}`).join('\n\n')).then(() => { setHasil({ ...hasil, diunduh: true }); notify('Tersalin'); })}>📋 Salin semua</button>
+                  </div>
+                  <div className="tablewrap" style={{ maxHeight: 340 }}>
+                    <table className="data"><thead><tr><th>Kode</th><th>Nama</th><th>Username</th><th>Password</th></tr></thead>
+                      <tbody>{hasil.baru.map(a => <tr key={a.Kode}><td>{a.Kode}</td><td>{a.Nama}</td><td className="cred">{a.Username}</td><td className="cred">{a.Password}</td></tr>)}</tbody></table>
+                  </div>
+                </>
+              ) : <p className="hint">Tidak ada akun baru — semua guru di file sudah punya password sebelumnya.</p>}
+            </>
+          )}
         </Modal>
       )}
     </>
