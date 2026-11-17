@@ -148,7 +148,7 @@ const getApiUrl = () => API_URL || localStorage.getItem('us_api') || '';
    - Data yang hanya DIBACA disimpan 20 detik di browser, jadi pindah
      menu tidak selalu memanggil server.
 ------------------------------------------------------------ */
-const READ_ACTIONS = ['ping', 'me', 'getSettings', 'getDashboard', 'getTable', 'getPaketList', 'getSoal', 'getCetakData'];
+const READ_ACTIONS = ['ping', 'me', 'getSettings', 'getDashboard', 'getTable', 'getPaketList', 'getSoal', 'getCetakData', 'monitor'];
 const RETRYABLE = /sibuk|penuh|too many|invoked|timed? ?out|time ?out|exceeded|service error|internal error|temporar|try again|coba lagi sebentar|terlalu lama|tidak bisa terhubung/i;
 const _apiCache = new Map();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -1104,6 +1104,12 @@ function Kop({ s }) {
   );
 }
 
+/** Alamat halaman ujian siswa (dibuat di Tahap 2) + username, untuk QR di kartu. */
+function linkSiswa(username) {
+  const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+  return base + 'siswa.html?u=' + encodeURIComponent(username);
+}
+
 function QR({ text }) {
   const src = useMemo(() => { try { const q = qrcode(0, 'M'); q.addData(String(text)); q.make(); return q.createDataURL(4, 0); } catch (e) { return ''; } }, [text]);
   return src ? <img className="qr" src={src} alt="QR" /> : null;
@@ -1149,7 +1155,8 @@ function KartuPage() {
                 <div className="kartu-body">
                   <div className="kartu-left">
                     <div className="foto">Pas Foto<br />2 × 3</div>
-                    <QR text={x.Username} />
+                    <QR text={linkSiswa(x.Username)} />
+                    <div style={{ fontSize: '5.5pt', textAlign: 'center', lineHeight: 1.1 }}>Scan untuk login</div>
                   </div>
                   <div className="kartu-right">
                     <table><tbody>
@@ -1189,7 +1196,8 @@ function terbilang(n) {
 }
 const kapital = t => String(t).replace(/\b\w/g, c => c.toUpperCase());
 
-function BeritaAcara({ s, j, r, peserta, namaMapel, jamKe }) {
+function BeritaAcara({ s, j, r, peserta, namaMapel, jamKe, hadir }) {
+  const tdkHadir = hadir ? peserta.filter(p => !hadir.includes(p.NoPeserta)) : null;
   const m = String(j.Tanggal).match(/^(\d{4})-(\d{2})-(\d{2})/) || [];
   const tgl = m.length ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
   const titik = n => '.'.repeat(n);
@@ -1210,9 +1218,10 @@ function BeritaAcara({ s, j, r, peserta, namaMapel, jamKe }) {
         <tr><td>1.</td><td>Ruang</td><td>: {r.Nama}</td></tr>
         <tr><td></td><td>Sesi / Jam ke-</td><td>: {j.Sesi} / {jamKe}</td></tr>
         <tr><td></td><td>Jumlah peserta seharusnya</td><td>: <b>{peserta.length}</b> orang ({terbilang(peserta.length)})</td></tr>
-        <tr><td></td><td>Jumlah peserta hadir</td><td>: {titik(10)} orang</td></tr>
-        <tr><td></td><td>Jumlah peserta tidak hadir</td><td>: {titik(10)} orang</td></tr>
-        <tr><td></td><td style={{ verticalAlign: 'top' }}>Nomor peserta tidak hadir</td><td>: {titik(85)}<br />&nbsp;&nbsp;{titik(85)}</td></tr>
+        <tr><td></td><td>Jumlah peserta hadir</td><td>: {tdkHadir ? <b>{peserta.length - tdkHadir.length}</b> : titik(10)} orang</td></tr>
+        <tr><td></td><td>Jumlah peserta tidak hadir</td><td>: {tdkHadir ? <b>{tdkHadir.length}</b> : titik(10)} orang</td></tr>
+        <tr><td></td><td style={{ verticalAlign: 'top' }}>Nomor peserta tidak hadir</td><td>: {tdkHadir ? (tdkHadir.length ? tdkHadir.map(p => p.NoPeserta + ' (' + p.Nama + ')').join(', ') : '–') : <>{titik(85)}<br />&nbsp;&nbsp;{titik(85)}</>}</td></tr>
+        {tdkHadir && <tr><td></td><td colSpan="2" style={{ fontSize: '8.5pt', fontStyle: 'italic' }}>Data kehadiran terisi otomatis dari aplikasi (siswa yang memulai ujian).</td></tr>}
         <tr><td style={{ paddingTop: '3mm' }}>2.</td><td colSpan="2" style={{ paddingTop: '3mm' }}>Catatan selama pelaksanaan ulangan (gangguan listrik/jaringan, pelanggaran tata tertib, dll.):</td></tr>
       </tbody></table>
       <div className="ba-catatan">{[1, 2, 3, 4, 5].map(i => <div key={i} />)}</div>
@@ -1341,7 +1350,7 @@ function DaftarHadirPage({ awal = 'hadir' }) {
             </div>
           </div>
         </div>}
-        {jenis !== 'hadir' && <BeritaAcara s={s} j={j} r={r} peserta={peserta} namaMapel={mapel[j.KodeMapel] || j.KodeMapel} jamKe={ke({ Tanggal: j.Tanggal, JamMulai: j.JamMulai })} />}
+        {jenis !== 'hadir' && <BeritaAcara s={s} j={j} r={r} peserta={peserta} namaMapel={mapel[j.KodeMapel] || j.KodeMapel} jamKe={ke({ Tanggal: j.Tanggal, JamMulai: j.JamMulai })} hadir={d.kehadiran && d.kehadiran[j.ID] ? d.kehadiran[j.ID] : null} />}
         </React.Fragment>
       ))}
     </>
@@ -1398,6 +1407,141 @@ function PengaturanPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/* ---------------- Monitoring Pengawas (Tahap 2) ---------------- */
+const ST_LABEL = { BELUM: ['Belum login', 'b-abu'], LOGIN: ['Sudah login', 'b-biru'], MENGERJAKAN: ['Mengerjakan', 'b-biru'], TERKUNCI: ['🔒 Terkunci', 'b-merah'], SELESAI: ['✓ Selesai', 'b-hijau'] };
+const fmtDetik = t => { if (t == null) return '–'; const m = Math.floor(t / 60), s = t % 60; return (m >= 60 ? Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
+
+function MonitorPage({ user }) {
+  const { notify } = useContext(Ctx);
+  const isAdmin = user.peran === 'admin';
+  const [d, setD] = useState(null);
+  const [q, setQ] = useState({ tanggal: '', slot: '', ruang: '' });
+  const [auto, setAuto] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [sisaTok, setSisaTok] = useState(0);
+  const [fStatus, setFStatus] = useState('');
+  const [lihatLog, setLihatLog] = useState(null);
+  const qRef = useRef(q); qRef.current = q;
+
+  const load = async silent => {
+    try {
+      const r = await api('monitor', qRef.current, { fresh: true, silent });
+      setD(r);
+      if (r.token) setSisaTok(r.token.sisaDetik);
+      if (!qRef.current.tanggal || !qRef.current.slot) setQ(x => ({ ...x, tanggal: x.tanggal || r.tanggal, slot: x.slot || r.slot }));
+    } catch (e) { if (!silent) notify(e.message, 'err'); }
+  };
+  useEffect(() => { load(); }, [q.tanggal, q.slot, q.ruang]);
+  useEffect(() => { if (!auto) return; const t = setInterval(() => load(true), 15000 + Math.random() * 5000); return () => clearInterval(t); }, [auto]);
+  useEffect(() => { const t = setInterval(() => setSisaTok(s => { if (s === 1) load(true); return Math.max(0, s - 1); }), 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { if (!d) return; const t = setInterval(() => setD(x => x && ({ ...x, siswa: x.siswa.map(s => s.sisa ? { ...s, sisa: s.sisa - 1 } : s) })), 1000); return () => clearInterval(t); }, [!!d]);
+
+  const aksi = async (nama, payload, pesan) => {
+    setBusy(nama + (payload.no || ''));
+    try { await api(nama, payload); notify(pesan); await load(true); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(''); }
+  };
+  const unduhNilai = async () => {
+    try {
+      const rows = await api('unduhNilai', { tanggal: q.tanggal });
+      if (!rows.length) return notify('Belum ada hasil ujian pada tanggal ini', 'err');
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(8, Math.min(40, k.length + 4)) }));
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Nilai');
+      XLSX.writeFile(wb, 'Nilai_' + q.tanggal + '.xlsx');
+    } catch (e) { notify(e.message, 'err'); }
+  };
+
+  if (!d) return <div className="card muted">Memuat monitoring…</div>;
+  const hitung = {}; d.siswa.forEach(s => { hitung[s.status] = (hitung[s.status] || 0) + 1; });
+  const shown = d.siswa.filter(s => !fStatus || s.status === fStatus);
+  const aktifRuang = d.siswa.filter(s => s.status === 'MENGERJAKAN' || s.status === 'TERKUNCI');
+
+  return (
+    <>
+      <div className="grid" style={{ gridTemplateColumns: 'minmax(220px,300px) 1fr', alignItems: 'stretch' }}>
+        <div className="card" style={{ textAlign: 'center', marginBottom: 0 }}>
+          {d.token ? (<>
+            <div className="muted">TOKEN UJIAN</div>
+            <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: 8, color: 'var(--biru)', fontFamily: 'monospace' }}>{d.token.token}</div>
+            <div className="hint">berganti dalam <b>{fmtDetik(sisaTok)}</b> · berlaku {d.token.menit} menit (+ token sebelumnya)</div>
+          </>) : <div className="muted" style={{ paddingTop: 20 }}>Token hanya tampil untuk ulangan hari ini.</div>}
+        </div>
+        <div className="card" style={{ marginBottom: 0 }}>
+          <div className="row">
+            <label style={{ margin: 0 }}>Tanggal<input type="date" value={q.tanggal} onChange={e => setQ({ ...q, tanggal: e.target.value, slot: '' })} style={{ width: 160 }} /></label>
+            <label style={{ margin: 0 }}>Jam ujian
+              <select value={q.slot} onChange={e => setQ({ ...q, slot: e.target.value })} style={{ width: 170 }}>
+                {!d.slots.length && <option value="">— tidak ada jadwal —</option>}
+                {d.slots.map((s, i) => <option key={s} value={s}>Jam ke-{i + 1} ({s})</option>)}
+              </select>
+            </label>
+            <label style={{ margin: 0 }}>Ruang
+              <select value={q.ruang} onChange={e => setQ({ ...q, ruang: e.target.value })} style={{ width: 170 }}>
+                <option value="">Semua ruang</option>{d.ruang.map(r => <option key={r.kode} value={r.kode}>{r.nama}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <span className="hint">Mapel: {d.mapel.map(m => `Kls ${m.tingkat} ${m.nama}`).join(' · ') || '–'}</span>
+          </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <label style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={auto} onChange={e => setAuto(e.target.checked)} style={{ width: 'auto' }} /> Perbarui otomatis (±15 dtk)</label>
+            <button className="btn sm" onClick={() => load()}>🔄 Perbarui</button>
+            {aktifRuang.length > 0 && <button className="btn sm" disabled={!!busy} onClick={() => { const m = prompt(`Tambah waktu untuk ${aktifRuang.length} siswa yang sedang mengerjakan${q.ruang ? ' di ruang ini' : ''}. Berapa menit?`, '10'); if (m) aksi('tambahWaktu', { menit: Number(m), daftar: aktifRuang.map(s => ({ jid: s.jid, no: s.no })) }, `+${m} menit untuk ${aktifRuang.length} siswa`); }}>⏱ Tambah waktu semua</button>}
+            {isAdmin && <button className="btn sm" onClick={unduhNilai}>⬇ Unduh nilai tanggal ini</button>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid stats" style={{ marginTop: 16 }}>
+        {['BELUM', 'LOGIN', 'MENGERJAKAN', 'TERKUNCI', 'SELESAI'].map(k => (
+          <button key={k} className="stat" style={{ textAlign: 'left', cursor: 'pointer', outline: fStatus === k ? '2px solid var(--biru2)' : 'none' }} onClick={() => setFStatus(fStatus === k ? '' : k)}>
+            <span className={'badge ' + ST_LABEL[k][1]}>{ST_LABEL[k][0]}</span><b>{hitung[k] || 0}</b>
+          </button>
+        ))}
+      </div>
+
+      <div className="card" style={{ padding: 0, marginTop: 16 }}>
+        <div className="tablewrap" style={{ border: 0, maxHeight: '60vh' }}>
+          <table className="data">
+            <thead><tr><th>Meja</th><th>No. Peserta</th><th>Nama</th><th>Mapel</th><th>Status</th><th>Dijawab</th><th>Sisa waktu</th><th>Pelanggaran</th><th>Aksi</th></tr></thead>
+            <tbody>
+              {shown.map(s => (
+                <tr key={s.jid + s.no} style={s.status === 'TERKUNCI' ? { background: '#fef2f2' } : null}>
+                  <td>{s.meja}</td><td style={{ fontFamily: 'monospace' }}>{s.no}</td><td><b>{s.nama}</b><div className="hint">{s.kelas} · {s.ruang}</div></td>
+                  <td>{s.mapel}</td>
+                  <td><span className={'badge ' + ST_LABEL[s.status][1]}>{ST_LABEL[s.status][0]}</span></td>
+                  <td>{s.n ? <>{s.terjawab}/{s.n}<div style={{ height: 5, background: '#e2e8f0', borderRadius: 9, marginTop: 3, width: 70 }}><div style={{ height: '100%', width: (s.terjawab / s.n * 100) + '%', background: 'var(--hijau)', borderRadius: 9 }} /></div></> : '–'}</td>
+                  <td style={{ fontVariantNumeric: 'tabular-nums', color: s.sisa != null && s.sisa < 300 ? 'var(--merah)' : undefined }}>{s.status === 'SELESAI' ? '–' : fmtDetik(s.sisa)}{s.tambah ? <div className="hint">+{s.tambah} mnt</div> : null}</td>
+                  <td>{s.viol ? <button className="btn sm danger" onClick={() => setLihatLog(s)}>{s.viol}× lihat</button> : <span className="muted">0</span>}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {s.status === 'TERKUNCI' && <button className="btn sm success" disabled={!!busy} onClick={() => aksi('bukaKunci', { jadwalId: s.jid, no: s.no }, 'Kunci dibuka: ' + s.nama)}>🔓 Buka kunci</button>}{' '}
+                    {(s.status === 'MENGERJAKAN' || s.status === 'TERKUNCI') && <button className="btn sm" disabled={!!busy} onClick={() => aksi('tambahWaktu', { jadwalId: s.jid, no: s.no, menit: 5 }, '+5 menit: ' + s.nama)}>+5′</button>}{' '}
+                    {s.status !== 'BELUM' && s.status !== 'SELESAI' && <button className="btn sm" disabled={!!busy} title="Untuk siswa yang ganti HP / HP mati" onClick={() => { if (confirm(`Reset perangkat ${s.nama}?\nSiswa bisa login lagi di HP lain. Jawaban tetap aman.`)) aksi('resetPerangkat', { no: s.no }, 'Perangkat direset: ' + s.nama); }}>📱 Reset</button>}
+                  </td>
+                </tr>
+              ))}
+              {!shown.length && <tr><td colSpan="9" className="muted" style={{ padding: 16 }}>Tidak ada peserta untuk pilihan ini.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="card hint">
+        <b>Panduan pengawas:</b> bacakan token ke siswa → siswa yang <span className="badge b-merah">🔒 Terkunci</span> angkat tangan → pastikan HP-nya kembali ke halaman ujian & tersemat → tekan <b>Buka kunci</b>, lalu siswa menekan "Sudah dibuka pengawas — Lanjutkan".
+        <b> Reset</b> hanya untuk siswa yang ganti HP / HP mati / ter-logout. Semua tindakan tercatat di Log.
+      </div>
+      {lihatLog && (
+        <Modal title={'Catatan pelanggaran — ' + lihatLog.nama} onClose={() => setLihatLog(null)}>
+          <ul>{lihatLog.log.map((l, i) => <li key={i}>{l}</li>)}</ul>
+          <p className="hint">Dicatat juga di berita acara digital (sheet Hasil).</p>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -1491,13 +1635,14 @@ const MENU = {
   admin: [
     ['sec', 'Utama'], ['dashboard', '🏠 Dashboard'],
     ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
+    ['sec', 'Ujian'], ['monitor', '📡 Monitoring'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
     ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
     ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
   ],
-  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya']]
+  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -1526,7 +1671,7 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
-    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />
   };
   const allowed = MENU[user.peran].map(m => m[0]);
 

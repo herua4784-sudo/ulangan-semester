@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1e3a8a">
+<title>Ulangan Semester — Siswa</title>
+<style>
+  :root{--biru:#1e3a8a;--biru2:#2563eb;--abu:#f1f5f9;--garis:#e2e8f0;--teks:#0f172a;--muted:#64748b;--hijau:#16a34a;--merah:#dc2626;--kuning:#d97706}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--teks);background:var(--abu);font-size:16px;overscroll-behavior:none}
+  button{font:inherit;cursor:pointer;border:0}
+  input,textarea{font:inherit;width:100%;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;background:#fff}
+  input:focus,textarea:focus{outline:none;border-color:var(--biru2)}
+  label{display:block;font-size:14px;color:var(--muted);margin:0 0 14px}
+  label input{margin-top:6px;color:var(--teks)}
+  .wrap{max-width:560px;margin:0 auto;padding:16px}
+  .center{min-height:100vh;display:flex;align-items:center;justify-content:center}
+  .card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:14px;width:100%}
+  .login{max-width:400px;text-align:center}
+  .login label{text-align:left}
+  .logo{height:64px;margin-bottom:6px}
+  h1{font-size:20px;margin:4px 0;color:var(--biru)}
+  h2{font-size:18px;margin:0 0 10px}
+  .muted{color:var(--muted)}.hint{font-size:13px;color:var(--muted)}
+  .btn{padding:12px 16px;border-radius:10px;background:#e2e8f0;color:var(--teks);font-weight:600}
+  .btn.primary{background:var(--biru2);color:#fff}.btn.success{background:var(--hijau);color:#fff}.btn.danger{background:var(--merah);color:#fff}
+  .btn.big{width:100%;padding:14px;font-size:17px}
+  .btn:disabled{opacity:.45}
+  .err{background:#fee2e2;color:#991b1b;padding:10px 12px;border-radius:10px;margin-bottom:12px;font-size:14px;text-align:left;white-space:pre-wrap}
+  .prof{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:15px}
+  .prof b{font-weight:600}
+  .uj{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--garis);padding:12px 0}
+  .uj:first-of-type{border-top:0}
+  .badge{display:inline-block;padding:3px 9px;border-radius:99px;font-size:12px;font-weight:700}
+  .b-abu{background:#e2e8f0;color:#334155}.b-biru{background:#dbeafe;color:#1e40af}.b-hijau{background:#dcfce7;color:#166534}.b-merah{background:#fee2e2;color:#991b1b}.b-kuning{background:#fef3c7;color:#92400e}
+  ol.tatib{padding-left:20px;line-height:1.55;margin:0 0 14px}
+  ol.tatib li{margin-bottom:6px}
+  .cek{display:flex;gap:10px;align-items:flex-start;font-size:15px;color:var(--teks);background:#fef3c7;padding:12px;border-radius:10px}
+  .cek input{width:22px;height:22px;flex-shrink:0;margin:0}
+  /* ujian */
+  .exam{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:84px}
+  .top{position:sticky;top:0;z-index:5;background:var(--biru);color:#fff;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .tmapel{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .timer{font-variant-numeric:tabular-nums;font-weight:800;font-size:18px;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:8px;white-space:nowrap}
+  .timer.low{background:var(--merah)}
+  .sub{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:13px;color:var(--muted);background:#fff;border-bottom:1px solid var(--garis);gap:8px}
+  .sub button{background:none;color:var(--biru2);font-weight:600;padding:4px 6px}
+  .soal{padding:16px 14px;flex:1;-webkit-user-select:none;user-select:none}
+  .soal .jenis{font-size:12px;font-weight:700;color:var(--biru2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+  .soal .q{white-space:pre-wrap;line-height:1.6;margin-bottom:14px;font-size:1em}
+  .soal img.qimg{max-width:100%;border-radius:8px;margin-bottom:14px;pointer-events:none}
+  .opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:#fff;border:2px solid var(--garis);border-radius:12px;padding:12px;margin-bottom:10px;line-height:1.45;color:var(--teks)}
+  .opt b{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:15px}
+  .opt.on{border-color:var(--biru2);background:#eff6ff}
+  .opt.on b{background:var(--biru2);color:#fff}
+  .opt span{white-space:pre-wrap;padding-top:4px}
+  .soal textarea{min-height:180px;resize:vertical;-webkit-user-select:text;user-select:text}
+  .soal input{-webkit-user-select:text;user-select:text}
+  .fs-1 .soal{font-size:15px}.fs-2 .soal{font-size:18px}.fs-3 .soal{font-size:21px}
+  .nav{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#fff;border-top:1px solid var(--garis);padding:10px;display:flex;gap:8px;justify-content:center}
+  .nav .inner{display:flex;gap:8px;max-width:760px;width:100%}
+  .nav button{flex:1;padding:13px 6px;border-radius:10px;font-weight:700;background:#e2e8f0}
+  .nav #ragu.on{background:#fde68a;color:#92400e}
+  .nav #next.fin{background:var(--hijau);color:#fff}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:8px;padding:0 14px 14px}
+  .grid button{padding:10px 0;border-radius:8px;background:#fff;border:2px solid var(--garis);font-weight:700}
+  .grid button.ok{background:var(--hijau);border-color:var(--hijau);color:#fff}
+  .grid button.ragu{background:#fbbf24;border-color:#fbbf24;color:#78350f}
+  .grid button.cur{outline:3px solid var(--biru2);outline-offset:1px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:0 14px 8px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .hide{display:none!important}
+  .wm{position:fixed;inset:-50%;z-index:3;pointer-events:none;opacity:.07;transform:rotate(-28deg);font-weight:800;font-size:15px;line-height:70px;color:#000;overflow:hidden;word-spacing:40px;white-space:normal}
+  .modal-bg{position:fixed;inset:0;z-index:50;background:rgba(15,23,42,.6);display:flex;align-items:center;justify-content:center;padding:18px}
+  .modal{background:#fff;border-radius:14px;padding:20px;max-width:420px;width:100%}
+  .modal .row{display:flex;gap:10px;margin-top:16px}
+  .modal .row .btn{flex:1}
+  .kunci{min-height:100vh;background:#7f1d1d;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+  .kunci .ic{font-size:64px}
+  .kunci h1{color:#fff;font-size:24px}
+  .kunci .btn{margin-top:18px}
+  .warn{position:fixed;inset:0;z-index:60;background:rgba(217,119,6,.95);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:22px;font-weight:800;padding:24px}
+  .bar{position:fixed;top:0;left:0;right:0;z-index:70;background:#fef3c7;color:#92400e;text-align:center;font-size:13px;padding:6px}
+  .done{text-align:center}
+  .done .ic{font-size:64px;color:var(--hijau)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="bar" class="bar hide"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   HALAMAN UJIAN SISWA — Ulangan Semester (Tahap 2)
+   Isi API_URL dengan URL server yang SAMA seperti di index.html
+   ===================================================================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbwfPCl63HEf9TSW5FFqjlBn64R6_i6vcSHupUmovI_3IcdrNxlgYdE62fEGbNat2UHT/exec';
+
+/* ---------------- util ---------------- */
+const $app = document.getElementById('app');
+const $bar = document.getElementById('bar');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const qs = new URLSearchParams(location.search);
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { } }
+};
+const ss = {
+  get(k) { try { return JSON.parse(sessionStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch (e) { } },
+  del(k) { try { sessionStorage.removeItem(k); } catch (e) { } }
+};
+function deviceId() {
+  let d = ls.get('us_dev');
+  if (!d) { d = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); ls.set('us_dev', d); }
+  return d;
+}
+function driveImg(url) {
+  url = String(url || '').trim();
+  const m = url.match(/[-\w]{25,}/);
+  if (/drive\.google|docs\.google/.test(url) && m) return 'https://lh3.googleusercontent.com/d/' + m[0];
+  return url;
+}
+function bar(msg) { if (msg) { $bar.textContent = '⏳ ' + msg; $bar.classList.remove('hide'); } else $bar.classList.add('hide'); }
+
+/* ---------------- state ---------------- */
+const S = { token: null, prof: null, ujian: [], info: null, cur: null, offset: 0 };
+
+/* ---------------- API (coba ulang otomatis) ---------------- */
+const RETRY = /sibuk|penuh|too many|invoked|timed? ?out|exceeded|service error|internal error|temporar|try again|terlalu lama|terhubung/i;
+async function api(action, payload = {}, opt = {}) {
+  if (!API_URL) throw new Error('Alamat server belum diatur. Hubungi admin.');
+  const max = opt.maxTry || 8;
+  let last;
+  for (let i = 0; i < max; i++) {
+    if (i > 0) {
+      if (!opt.silent) bar(`Server sibuk, mencoba lagi (${i}/${max - 1})…`);
+      await sleep(Math.min(10000, 800 * 2 ** (i - 1)) + Math.random() * 1500 * i);
+    }
+    let j;
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), opt.timeout || 30000);
+      const res = await fetch(API_URL, {
+        method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, token: S.token || '', ...payload })
+      });
+      clearTimeout(to);
+      const txt = await res.text();
+      try { j = JSON.parse(txt); } catch (e) { last = new Error('Server sedang penuh'); continue; }
+    } catch (e) {
+      last = new Error(e.name === 'AbortError' ? 'Server terlalu lama merespons' : 'Tidak bisa terhubung ke server. Periksa internet.');
+      continue;
+    }
+    bar(null);
+    if (j.ok) return j.data;
+    if (j.error === 'SESI_HABIS') { sesiHabis(); throw new Error('Sesi berakhir. Silakan login lagi.'); }
+    if (RETRY.test(j.error)) { last = new Error(j.error); continue; }
+    throw new Error(j.error);
+  }
+  bar(null);
+  throw last;
+}
+/** Kirim tanpa menunggu jawaban — tetap terkirim walau HP berpindah aplikasi. */
+function beacon(action, payload) {
+  try {
+    const body = JSON.stringify({ action, token: S.token || '', ...payload });
+    if (navigator.sendBeacon && navigator.sendBeacon(API_URL, new Blob([body], { type: 'text/plain;charset=utf-8' }))) return true;
+  } catch (e) { }
+  return false;
+}
+
+/* ---------------- layar penuh ---------------- */
+const FS_OK = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen) && document.fullscreenEnabled !== false;
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+function masukLayarPenuh() {
+  if (!FS_OK || fsEl()) return;
+  try {
+    const el = document.documentElement;
+    const r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' });
+    if (r && r.catch) r.catch(() => { });
+  } catch (e) { }
+}
+function keluarLayarPenuh() {
+  try { if (fsEl()) (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) { }
+}
+
+/* ---------------- modal (tanpa alert/confirm — agar tidak memicu pelanggaran) ---------------- */
+function modal(html, tombol = []) {
+  tutupModal();
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg'; bg.id = 'modal';
+  bg.innerHTML = `<div class="modal">${html}${tombol.length ? `<div class="row">${tombol.map((t, i) => `<button class="btn ${t.cls || ''}" data-i="${i}">${esc(t.label)}</button>`).join('')}</div>` : ''}</div>`;
+  bg.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) { const t = tombol[+b.dataset.i]; tutupModal(); t.fn && t.fn(); } });
+  document.body.appendChild(bg);
+}
+function tutupModal() { const m = document.getElementById('modal'); if (m) m.remove(); }
+
+/* =====================================================================
+   1. LOGIN
+   ===================================================================== */
+function renderLogin(pesan) {
+  const i = S.info || {};
+  $app.innerHTML = `
+  <div class="wrap center"><div class="card login">
+    ${i.logo_url ? `<img class="logo" src="${esc(driveImg(i.logo_url))}" alt="">` : '<div style="font-size:44px">📝</div>'}
+    <h1>${esc(i.nama_ujian || 'ULANGAN SEMESTER')}</h1>
+    <p class="muted" style="margin-top:0">${esc(i.nama_sekolah || '')}${i.tahun_pelajaran ? ' · TP ' + esc(i.tahun_pelajaran) : ''}</p>
+    ${pesan ? `<div class="err">${esc(pesan)}</div>` : ''}
+    <div id="err"></div>
+    <label>Username<input id="u" inputmode="numeric" autocomplete="username" value="${esc(qs.get('u') || '')}"></label>
+    <label>Password<input id="p" type="password" autocomplete="current-password" autocapitalize="characters" spellcheck="false"></label>
+    <button class="btn primary big" id="masuk">Masuk</button>
+    <p class="hint">Username & password tertulis di kartu peserta.</p>
+  </div></div>`;
+  const u = document.getElementById('u'), p = document.getElementById('p'), b = document.getElementById('masuk');
+  (u.value ? p : u).focus();
+  const go = async () => {
+    const err = document.getElementById('err');
+    err.innerHTML = '';
+    if (!u.value.trim() || !p.value.trim()) { err.innerHTML = '<div class="err">Isi username dan password.</div>'; return; }
+    b.disabled = true; b.textContent = 'Memeriksa…';
+    try {
+      const r = await api('siswaLogin', { username: u.value.trim(), password: p.value.trim(), device: deviceId() });
+      S.token = r.token; S.prof = r.profil; S.ujian = r.ujian; S.offset = r.serverNow - Date.now();
+      ss.set('us_sesi', { token: S.token, prof: S.prof });
+      renderPilih();
+    } catch (e) { err.innerHTML = `<div class="err">${esc(e.message)}</div>`; b.disabled = false; b.textContent = 'Masuk'; }
+  };
+  b.onclick = go;
+  p.onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+function sesiHabis() {
+  ss.del('us_sesi'); S.token = null; S.prof = null; S.cur = null; aktif = false;
+  keluarLayarPenuh();
+  renderLogin('Sesi berakhir atau akun dibuka di perangkat lain. Silakan login lagi.');
+}
+
+/* =====================================================================
+   2. PILIH UJIAN
+   ===================================================================== */
+function badgeUjian(u) {
+  if (u.status === 'SELESAI') return '<span class="badge b-hijau">✓ Selesai</span>';
+  if (u.status === 'TERKUNCI') return '<span class="badge b-merah">Terkunci</span>';
+  if (u.status === 'MENGERJAKAN') return '<span class="badge b-biru">Sedang dikerjakan</span>';
+  if (!u.siap) return '<span class="badge b-abu">Soal belum siap</span>';
+  if (u.belumWaktu) return '<span class="badge b-abu">Belum waktunya</span>';
+  if (u.lewat) return '<span class="badge b-abu">Waktu habis</span>';
+  return '<span class="badge b-kuning">Siap dimulai</span>';
+}
+function renderPilih(pesan) {
+  const p = S.prof;
+  const bisaBaru = S.ujian.some(u => u.status === 'BELUM' && u.siap && u.bisaMulai);
+  $app.innerHTML = `
+  <div class="wrap">
+    <div class="card">
+      <h2>👋 ${esc(p.nama)}</h2>
+      <div class="prof">
+        <span class="muted">No. Peserta</span><b>${esc(p.no)}</b>
+        <span class="muted">Kelas</span><b>${esc(p.kelas)}</b>
+        <span class="muted">Ruang / Meja</span><b>${esc(p.ruang)} / ${esc(p.meja)}</b>
+      </div>
+    </div>
+    ${pesan ? `<div class="err">${esc(pesan)}</div>` : ''}
+    <div class="card">
+      <h2>Ulangan hari ini</h2>
+      ${S.ujian.length ? S.ujian.map(u => `
+        <div class="uj">
+          <div><b>${esc(u.mapel)}</b><div class="hint">${esc(u.jam)} WITA · ${esc(u.durasi)} menit · ${u.jumlahSoal} soal</div><div style="margin-top:4px">${badgeUjian(u)}</div></div>
+          <div>${(u.status === 'MENGERJAKAN' || u.status === 'TERKUNCI') ? `<button class="btn primary" data-lanjut="${esc(u.id)}">Lanjutkan</button>`
+            : (u.status === 'BELUM' && u.siap && u.bisaMulai) ? `<button class="btn primary" data-mulai="${esc(u.id)}">Mulai</button>` : ''}</div>
+        </div>`).join('') : '<p class="muted">Tidak ada ulangan untuk Anda hari ini.</p>'}
+    </div>
+    ${bisaBaru ? `<div class="card"><label style="margin:0">Token ujian (dibacakan pengawas)<input id="tok" autocapitalize="characters" spellcheck="false" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;font-weight:800;text-align:center;font-size:22px"></label></div>` : ''}
+    <div style="display:flex;gap:10px">
+      <button class="btn" id="muat" style="flex:1">🔄 Muat ulang</button>
+      <button class="btn" id="keluar" style="flex:1">Keluar</button>
+    </div>
+  </div>`;
+  document.getElementById('muat').onclick = async () => {
+    try { const r = await api('siswaUjian'); S.ujian = r.ujian; S.offset = r.serverNow - Date.now(); renderPilih(); }
+    catch (e) { renderPilih(e.message); }
+  };
+  document.getElementById('keluar').onclick = () => { ss.del('us_sesi'); S.token = null; renderLogin(); };
+  $app.querySelectorAll('[data-mulai]').forEach(b => b.onclick = () => {
+    const t = (document.getElementById('tok') || {}).value || '';
+    if (t.trim().length < 6) { renderPilih('Masukkan token 6 huruf dari pengawas terlebih dahulu.'); return; }
+    renderTatib(S.ujian.find(u => u.id === b.dataset.mulai), t.trim().toUpperCase());
+  });
+  $app.querySelectorAll('[data-lanjut]').forEach(b => b.onclick = () => renderTatib(S.ujian.find(u => u.id === b.dataset.lanjut), ''));
+}
+
+/* =====================================================================
+   3. TATA TERTIB
+   ===================================================================== */
+function renderTatib(u, token) {
+  $app.innerHTML = `
+  <div class="wrap">
+    <div class="card">
+      <h2>📋 Tata tertib — ${esc(u.mapel)}</h2>
+      <ol class="tatib">
+        <li><b>Sematkan layar</b> (Pin) sebelum mulai, sesuai arahan pengawas.</li>
+        <li>Ujian berjalan dalam <b>layar penuh</b>. Jangan keluar aplikasi, pindah tab, membagi layar, membuka jendela mengambang, menarik panel notifikasi, atau memuat ulang halaman.</li>
+        <li>Jika itu terjadi, <b>akun langsung TERKUNCI</b>. Angkat tangan dan minta pengawas membukanya. Jawaban tetap aman.</li>
+        <li>Aktifkan mode <b>Jangan Ganggu</b> agar telepon/notifikasi tidak mengganggu.</li>
+        <li>Jawaban <b>tersimpan otomatis</b>. Saat waktu habis, jawaban terkirim sendiri.</li>
+        <li>Dilarang bekerja sama. Tulisan nama & nomor Anda tampil samar di layar.</li>
+      </ol>
+      <label class="cek"><input type="checkbox" id="setuju"> <span>Saya sudah menyematkan layar dan bersedia mematuhi tata tertib.</span></label>
+      <div id="err" style="margin-top:12px"></div>
+      <button class="btn success big" id="mulai" disabled>${u.status === 'BELUM' ? 'Mulai mengerjakan' : 'Lanjutkan mengerjakan'}</button>
+      <button class="btn big" id="batal" style="margin-top:10px">Kembali</button>
+    </div>
+  </div>`;
+  const cb = document.getElementById('setuju'), b = document.getElementById('mulai');
+  cb.onchange = () => { b.disabled = !cb.checked; };
+  document.getElementById('batal').onclick = () => renderPilih();
+  b.onclick = async () => {
+    masukLayarPenuh(); // harus langsung dari sentuhan pengguna
+    b.disabled = true; b.textContent = 'Menyiapkan soal…';
+    try {
+      const r = await api('siswaMulai', { jadwalId: u.id, tokenUjian: token });
+      mulaiUjian(u, r);
+    } catch (e) {
+      keluarLayarPenuh();
+      document.getElementById('err').innerHTML = `<div class="err">${esc(e.message)}</div>`;
+      b.disabled = false; b.textContent = u.status === 'BELUM' ? 'Mulai mengerjakan' : 'Lanjutkan mengerjakan';
+      if (/Token/.test(e.message)) setTimeout(() => renderPilih(e.message), 1500);
+    }
+  };
+}
+
+/* =====================================================================
+   4. UJIAN
+   ===================================================================== */
+const lokalKey = () => 'us_j_' + S.cur.jid + '_' + S.prof.no;
+function simpanLokal() { ls.set(lokalKey(), JSON.stringify({ j: S.cur.jawab, r: [...S.cur.ragu], t: Date.now() })); }
+
+function mulaiUjian(u, r) {
+  S.offset = r.serverNow - Date.now();
+  S.cur = { jid: u.id, mapel: r.mapel, soal: r.soal, jawab: Object.assign({}, r.jawab || {}), ragu: new Set(r.ragu || []), deadline: r.deadline, idx: 0, ver: 0, savedVer: 0, habis: false, lastSave: null, saveErr: false };
+  try { const l = JSON.parse(ls.get(lokalKey()) || 'null'); if (l) { Object.assign(S.cur.jawab, l.j || {}); (l.r || []).forEach(x => S.cur.ragu.add(x)); S.cur.ver++; } } catch (e) { }
+  const firstEmpty = S.cur.soal.findIndex(s => !S.cur.jawab[s.no]);
+  S.cur.idx = firstEmpty > 0 ? firstEmpty : 0;
+  if (r.status === 'TERKUNCI') { renderKunci('Akun masih terkunci'); return; }
+  renderUjian();
+  aktifkanSetelah(1500);
+  jadwalSimpan();
+}
+
+let ukuran = parseInt(ls.get('us_fs') || '2', 10);
+function renderUjian() {
+  const c = S.cur, p = S.prof;
+  const wmText = Array(400).fill(esc(p.no + ' ' + p.nama)).join(' ');
+  $app.innerHTML = `
+  <div class="exam fs-${ukuran}">
+    <div class="top"><div class="tmapel">${esc(c.mapel)}</div><div id="timer" class="timer">--:--</div></div>
+    <div class="sub"><span id="pos"></span><span id="simpan" class="hint"></span><span><button id="aa">Aa</button><button id="tgl">☰ Soal</button></span></div>
+    <div id="gridwrap" class="hide">
+      <div class="legend" style="padding-top:10px"><span><i style="background:var(--hijau)"></i>Dijawab</span><span><i style="background:#fbbf24"></i>Ragu-ragu</span><span><i style="background:#fff;border:1px solid #cbd5e1"></i>Belum</span></div>
+      <div id="grid" class="grid"></div>
+    </div>
+    <div id="soal" class="soal"></div>
+    <div class="nav"><div class="inner"><button id="prev">◀ Sebelum</button><button id="ragu">Ragu</button><button id="next">Berikut ▶</button></div></div>
+    <div class="wm">${wmText}</div>
+  </div>`;
+  document.getElementById('prev').onclick = () => pindah(c.idx - 1);
+  document.getElementById('next').onclick = () => { if (c.idx >= c.soal.length - 1) konfirmasiSelesai(); else pindah(c.idx + 1); };
+  document.getElementById('ragu').onclick = () => { const no = c.soal[c.idx].no; c.ragu.has(no) ? c.ragu.delete(no) : c.ragu.add(no); c.ver++; simpanLokal(); renderNav(); };
+  document.getElementById('tgl').onclick = () => document.getElementById('gridwrap').classList.toggle('hide');
+  document.getElementById('aa').onclick = () => { ukuran = ukuran % 3 + 1; ls.set('us_fs', String(ukuran)); document.querySelector('.exam').className = 'exam fs-' + ukuran; };
+  document.getElementById('grid').onclick = e => { const b = e.target.closest('button[data-i]'); if (b) { pindah(+b.dataset.i); document.getElementById('gridwrap').classList.add('hide'); } };
+  const soalEl = document.getElementById('soal');
+  soalEl.onclick = e => {
+    const b = e.target.closest('.opt');
+    if (!b) return;
+    const s = c.soal[c.idx];
+    if (s.jenis === 'PGK') {
+      const set = new Set((c.jawab[s.no] || '').split(',').filter(Boolean));
+      set.has(b.dataset.k) ? set.delete(b.dataset.k) : set.add(b.dataset.k);
+      setJawab(s.no, [...set].sort().join(','));
+    } else setJawab(s.no, c.jawab[s.no] === b.dataset.k ? '' : b.dataset.k);
+    renderSoal();
+  };
+  soalEl.oninput = e => { if (e.target.id === 'isian' || e.target.id === 'uraian') setJawab(c.soal[c.idx].no, e.target.value); };
+  renderSoal();
+  tampilSimpan();
+  tick();
+}
+
+const LABEL = { PG: 'Pilihan ganda', PGK: 'Pilihan ganda kompleks — pilih SEMUA jawaban benar', BS: 'Benar / Salah', ISIAN: 'Isian singkat', URAIAN: 'Uraian' };
+function renderSoal() {
+  const c = S.cur, s = c.soal[c.idx], v = c.jawab[s.no] || '';
+  let h = `<div class="jenis">${LABEL[s.jenis] || s.jenis}</div><div class="q">${esc(s.q)}</div>`;
+  if (s.img) h += `<img class="qimg" src="${esc(driveImg(s.img))}" alt="gambar soal">`;
+  if (s.jenis === 'PG' || s.jenis === 'PGK') {
+    const pilih = new Set(v.split(','));
+    h += s.opsi.map((o, i) => `<button class="opt ${pilih.has(o.k) ? 'on' : ''}" data-k="${esc(o.k)}"><b>${s.jenis === 'PGK' ? (pilih.has(o.k) ? '✓' : '') : 'ABCDE'[i]}</b><span>${esc(o.t)}</span></button>`).join('');
+  } else if (s.jenis === 'BS') {
+    h += [['B', 'Benar'], ['S', 'Salah']].map(([k, t]) => `<button class="opt ${v === k ? 'on' : ''}" data-k="${k}"><b>${k}</b><span>${t}</span></button>`).join('');
+  } else if (s.jenis === 'ISIAN') {
+    h += `<input id="isian" value="${esc(v)}" placeholder="Ketik jawaban singkat" autocomplete="off" spellcheck="false">`;
+  } else {
+    h += `<textarea id="uraian" placeholder="Tulis jawaban uraian Anda di sini">${esc(v)}</textarea>`;
+  }
+  const el = document.getElementById('soal');
+  el.innerHTML = h;
+  el.scrollIntoView ? window.scrollTo(0, 0) : 0;
+  document.getElementById('pos').textContent = `Soal ${c.idx + 1} dari ${c.soal.length}`;
+  renderNav();
+}
+function renderNav() {
+  const c = S.cur;
+  const g = document.getElementById('grid');
+  if (!g) return;
+  g.innerHTML = c.soal.map((s, i) => `<button data-i="${i}" class="${c.ragu.has(s.no) ? 'ragu' : (c.jawab[s.no] ? 'ok' : '')} ${i === c.idx ? 'cur' : ''}">${i + 1}</button>`).join('');
+  const s = c.soal[c.idx];
+  document.getElementById('ragu').classList.toggle('on', c.ragu.has(s.no));
+  document.getElementById('prev').disabled = c.idx === 0;
+  const nx = document.getElementById('next');
+  const akhir = c.idx >= c.soal.length - 1;
+  nx.textContent = akhir ? 'Selesai ✓' : 'Berikut ▶';
+  nx.classList.toggle('fin', akhir);
+}
+function pindah(i) { const c = S.cur; if (i < 0 || i >= c.soal.length) return; c.idx = i; renderSoal(); }
+function setJawab(no, val) {
+  const c = S.cur;
+  if (val === '' || val == null) delete c.jawab[no]; else c.jawab[no] = val;
+  c.ver++; simpanLokal(); renderNav(); tampilSimpan();
+}
+
+/* ---------- waktu ---------- */
+function fmtSisa(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), d = t % 60;
+  const p = n => String(n).padStart(2, '0');
+  return (h ? h + ':' + p(m) : p(m)) + ':' + p(d);
+}
+function tick() {
+  const c = S.cur;
+  if (!c) return;
+  const sisa = c.deadline - (Date.now() + S.offset);
+  const el = document.getElementById('timer');
+  if (el) { el.textContent = '⏱ ' + fmtSisa(sisa); el.classList.toggle('low', sisa < 5 * 60000); }
+  if (sisa <= 0 && !c.habis && $app.querySelector('.exam')) {
+    c.habis = true;
+    aktif = false;
+    modal('<h2>⏰ Waktu habis</h2><p>Jawaban Anda sedang dikirim. Jangan tutup halaman ini.</p>');
+    setTimeout(() => selesai(true), Math.random() * 12000);
+  }
+}
+setInterval(tick, 1000);
+
+/* ---------- simpan otomatis (30–60 detik acak) ---------- */
+let saveT = null, menyimpan = false;
+function jadwalSimpan() { clearTimeout(saveT); saveT = setTimeout(async () => { await simpanServer(); if (S.cur && !S.cur.habis) jadwalSimpan(); }, 30000 + Math.random() * 30000); }
+async function simpanServer() {
+  const c = S.cur;
+  if (!c || menyimpan) return;
+  menyimpan = true;
+  const ver = c.ver;
+  const kirimJawab = ver !== c.savedVer;
+  try {
+    const r = await api('siswaSimpan', kirimJawab ? { jadwalId: c.jid, jawab: c.jawab, ragu: [...c.ragu] } : { jadwalId: c.jid }, { silent: true, maxTry: 4 });
+    S.offset = r.serverNow - Date.now();
+    c.deadline = r.deadline;
+    if (kirimJawab) c.savedVer = ver;
+    c.lastSave = new Date(); c.saveErr = false;
+    if (r.status === 'TERKUNCI' && aktif) { aktif = false; renderKunci('Dikunci oleh sistem'); }
+    else if (r.status === 'SELESAI') { aktif = false; hapusLokal(); keluarLayarPenuh(); renderSelesai({ terjawab: Object.keys(c.jawab).length, jumlah: c.soal.length }); }
+  } catch (e) { c.saveErr = true; }
+  finally { menyimpan = false; tampilSimpan(); }
+}
+function tampilSimpan() {
+  const el = document.getElementById('simpan'), c = S.cur;
+  if (!el || !c) return;
+  const n = Object.keys(c.jawab).length;
+  const jam = c.lastSave ? c.lastSave.toTimeString().slice(0, 5) : '';
+  el.textContent = c.saveErr ? `⚠ Offline — ${n} jawaban aman di HP` : (c.ver !== c.savedVer ? `${n} dijawab · menunggu simpan` : `✓ ${n} tersimpan ${jam}`);
+}
+function hapusLokal() { if (S.cur) ls.del(lokalKey()); }
+
+/* ---------- selesai ---------- */
+function konfirmasiSelesai() {
+  const c = S.cur;
+  const kosong = c.soal.filter(s => !c.jawab[s.no]).length;
+  const ragu = c.soal.filter(s => c.ragu.has(s.no)).length;
+  modal(`<h2>Selesai mengerjakan?</h2>
+    <p>${kosong ? `<b style="color:var(--merah)">${kosong} soal belum dijawab.</b><br>` : 'Semua soal sudah dijawab. '}${ragu ? `<b style="color:var(--kuning)">${ragu} soal ditandai ragu-ragu.</b><br>` : ''}Setelah selesai, jawaban <b>tidak bisa diubah</b> lagi.</p>`,
+    [{ label: 'Periksa lagi' }, { label: 'Ya, selesai', cls: 'success', fn: () => selesai(false) }]);
+}
+async function selesai(otomatis) {
+  const c = S.cur;
+  aktif = false;
+  clearTimeout(saveT);
+  modal('<h2>Mengirim jawaban…</h2><p>Mohon tunggu, jangan tutup halaman.</p>');
+  try {
+    const r = await api('siswaSelesai', { jadwalId: c.jid, jawab: c.jawab, ragu: [...c.ragu] }, { maxTry: 10 });
+    tutupModal(); hapusLokal(); keluarLayarPenuh(); renderSelesai(r);
+  } catch (e) {
+    if (/terkunci/i.test(e.message)) { tutupModal(); renderKunci('Akun terkunci'); return; }
+    modal(`<h2>Belum terkirim</h2><div class="err">${esc(e.message)}</div><p>Jawaban Anda aman di HP. Periksa internet lalu coba lagi.</p>`,
+      [{ label: 'Coba kirim lagi', cls: 'primary', fn: () => selesai(otomatis) }]);
+  }
+}
+function renderSelesai(r) {
+  S.cur = null;
+  $app.innerHTML = `
+  <div class="wrap center"><div class="card done">
+    <div class="ic">✅</div>
+    <h1>Jawaban terkirim</h1>
+    <p>${r.terjawab != null ? `${r.terjawab} dari ${r.jumlah} soal dijawab.` : ''}</p>
+    ${r.nilai != null ? `<p style="font-size:20px">Nilai sementara: <b>${String(r.nilai).replace('.', ',')}</b></p>${r.adaUraian ? '<p class="hint">Belum termasuk soal uraian yang dikoreksi guru.</p>' : ''}` : ''}
+    <p class="hint">Terima kasih. Tunggu arahan pengawas.</p>
+    <button class="btn primary big" id="kembali">Kembali ke daftar ulangan</button>
+  </div></div>`;
+  document.getElementById('kembali').onclick = async () => {
+    try { const x = await api('siswaUjian'); S.ujian = x.ujian; } catch (e) { }
+    renderPilih();
+  };
+}
+
+/* =====================================================================
+   5. PENGAWASAN OTOMATIS (pelanggaran → akun terkunci)
+   ===================================================================== */
+let aktif = false, aktifT = null, fsSaatAktif = false, refUkuran = 0, kecilSejak = 0, blurT = null;
+function aktifkanSetelah(ms) {
+  clearTimeout(aktifT);
+  aktifT = setTimeout(() => {
+    if (!S.cur || S.cur.habis) return;
+    aktif = true;
+    fsSaatAktif = !!fsEl();
+    refUkuran = Math.max(innerWidth, innerHeight);
+    kecilSejak = 0;
+  }, ms);
+}
+function langgar(jenis) {
+  if (!aktif || !S.cur) return;
+  aktif = false;
+  const c = S.cur;
+  const payload = { jadwalId: c.jid, jenis, jawab: c.jawab, ragu: [...c.ragu] };
+  if (document.hidden) beacon('siswaPelanggaran', payload);
+  api('siswaPelanggaran', payload, { silent: true }).catch(() => { });
+  renderKunci(jenis);
+}
+function renderKunci(jenis) {
+  tutupModal();
+  $app.innerHTML = `
+  <div class="kunci"><div>
+    <div class="ic">🔒</div>
+    <h1>Ujian terkunci</h1>
+    <p>Terdeteksi: <b>${esc(jenis)}</b></p>
+    <p>Angkat tangan dan minta <b>pengawas membuka kunci</b> akun Anda.<br>Jawaban Anda tetap tersimpan.</p>
+    <p style="opacity:.85">${esc(S.prof ? S.prof.no + ' · ' + S.prof.nama : '')}</p>
+    <div id="kmsg"></div>
+    <button class="btn big" id="lanjut" style="background:#fff;color:#7f1d1d">Sudah dibuka pengawas — Lanjutkan</button>
+  </div></div>`;
+  document.getElementById('lanjut').onclick = async e => {
+    const b = e.currentTarget;
+    masukLayarPenuh();
+    b.disabled = true; b.textContent = 'Memeriksa…';
+    try {
+      const r = await api('siswaSimpan', { jadwalId: S.cur.jid });
+      S.offset = r.serverNow - Date.now(); S.cur.deadline = r.deadline;
+      if (r.status === 'MENGERJAKAN') { renderUjian(); aktifkanSetelah(1500); jadwalSimpan(); return; }
+      if (r.status === 'SELESAI') { hapusLokal(); keluarLayarPenuh(); renderSelesai({ terjawab: Object.keys(S.cur.jawab).length, jumlah: S.cur.soal.length }); return; }
+      document.getElementById('kmsg').innerHTML = '<p style="background:#fff;color:#7f1d1d;border-radius:10px;padding:10px"><b>Belum dibuka.</b> Tunggu pengawas menekan "Buka kunci", lalu tekan tombol ini lagi.</p>';
+    } catch (err) { document.getElementById('kmsg').innerHTML = `<div class="err">${esc(err.message)}</div>`; }
+    b.disabled = false; b.textContent = 'Sudah dibuka pengawas — Lanjutkan';
+  };
+}
+function peringatan(on) {
+  let w = document.getElementById('warn');
+  if (on && !w) { w = document.createElement('div'); w.id = 'warn'; w.className = 'warn'; w.textContent = '⚠ Kembali ke halaman ujian sekarang!'; document.body.appendChild(w); }
+  if (!on && w) w.remove();
+}
+function cekLayar() {
+  if (!aktif) { kecilSejak = 0; return; }
+  const ae = document.activeElement;
+  const mengetik = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+  const now = Math.max(innerWidth, innerHeight);
+  if (now > refUkuran) refUkuran = now;
+  if (!mengetik && refUkuran && now < refUkuran * 0.7) {
+    if (!kecilSejak) kecilSejak = Date.now();
+    else if (Date.now() - kecilSejak > 1500) langgar('Layar dibagi / jendela diperkecil');
+  } else kecilSejak = 0;
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) langgar('Keluar atau pindah aplikasi'); });
+window.addEventListener('pagehide', () => langgar('Menutup atau memuat ulang halaman'));
+window.addEventListener('blur', () => {
+  if (!aktif) return;
+  peringatan(true);
+  clearTimeout(blurT);
+  blurT = setTimeout(() => { peringatan(false); if (aktif && !document.hasFocus()) langgar('Membuka aplikasi atau jendela lain'); }, 2500);
+});
+window.addEventListener('focus', () => { clearTimeout(blurT); peringatan(false); });
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => {
+  if (aktif && fsSaatAktif && !fsEl()) langgar('Keluar dari layar penuh');
+}));
+window.addEventListener('resize', cekLayar);
+setInterval(cekLayar, 700);
+// cegah salin/tempel/menu & tombol kembali selama ujian
+['contextmenu', 'copy', 'cut', 'paste', 'dragstart'].forEach(ev => document.addEventListener(ev, e => { if (S.cur) e.preventDefault(); }));
+history.pushState(null, '', location.href);
+window.addEventListener('popstate', () => { if (S.cur) history.pushState(null, '', location.href); });
+
+/* =====================================================================
+   MULAI
+   ===================================================================== */
+(async function init() {
+  const sesi = ss.get('us_sesi');
+  if (sesi && sesi.token) {
+    S.token = sesi.token; S.prof = sesi.prof;
+    $app.innerHTML = '<div class="wrap center"><p class="muted">Memuat…</p></div>';
+    try { const r = await api('siswaUjian', {}, { maxTry: 4 }); S.ujian = r.ujian; S.offset = r.serverNow - Date.now(); renderPilih(); return; }
+    catch (e) { if (!S.token) return; }
+  }
+  renderLogin();
+  try { S.info = await api('info', {}, { maxTry: 2, silent: true }); if (!S.token) { const u = document.getElementById('u'), p = document.getElementById('p'); const uv = u ? u.value : '', pv = p ? p.value : ''; renderLogin(); if (u) { document.getElementById('u').value = uv; document.getElementById('p').value = pv; } } } catch (e) { }
+})();
+</script>
+</body>
+</html>
