@@ -93,6 +93,19 @@
   .cred{font-family:"Courier New",monospace;font-weight:700;font-size:10pt;letter-spacing:1px}
   .ttd-mini{align-self:flex-end;text-align:center;font-size:7.3pt;line-height:1.25}
   .ttd-mini .sp{height:8mm}
+  .meja-grid{display:grid;grid-template-columns:93mm 93mm;grid-auto-rows:89mm;gap:3mm 3mm;justify-content:center}
+  .meja{border:1.5px solid #000;padding:3mm 4mm;display:flex;flex-direction:column;break-inside:avoid;overflow:hidden}
+  .meja-head{display:flex;align-items:center;gap:2.5mm;border-bottom:1.3px solid #000;padding-bottom:1.5mm}
+  .meja-head img{width:11mm;height:11mm;object-fit:contain}
+  .meja-head .t{flex:1;text-align:center;font-size:7.5pt;line-height:1.25}
+  .meja-head .t1{font-weight:800;font-size:10.5pt;letter-spacing:.5px}
+  .meja-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:2mm}
+  .meja-no{display:flex;align-items:baseline;gap:3mm;border:2px solid #000;border-radius:3mm;padding:0 5mm}
+  .meja-no span{font-size:13pt;font-weight:700;letter-spacing:1px}
+  .meja-no b{font-size:46pt;line-height:1.1}
+  .meja-info .np{font-family:"Courier New",monospace;font-size:24pt;font-weight:800;letter-spacing:1px}
+  .meja-info .nm{font-size:15pt;font-weight:700;margin-top:1mm;line-height:1.2}
+  .meja-info .kl{font-size:11pt;margin-top:1mm}
   .kop{display:flex;align-items:center;gap:4mm;border-bottom:3px double #000;padding-bottom:2mm;margin-bottom:4mm}
   .kop img{width:20mm;height:20mm;object-fit:contain}
   .kop .t{flex:1;text-align:center;line-height:1.3}
@@ -1182,6 +1195,61 @@ function KartuPage() {
   );
 }
 
+/* ---------------- Kartu Meja (ditempel di meja ujian) ---------------- */
+function KartuMejaPage() {
+  const d = useCetakData();
+  const [fR, setFR] = useState('');
+  const [fS, setFS] = useState('');
+  if (!d) return <div className="card muted">Memuat data cetak…</div>;
+  const s = d.settings;
+  const nRuang = Object.fromEntries(d.ruang.map(r => [r.Kode, r.Nama]));
+  const sesiList = [...new Set(d.siswa.map(x => String(x.Sesi || '1')))].sort();
+  const siswa = d.siswa
+    .filter(x => x.Ruang && (!fR || x.Ruang === fR) && (!fS || String(x.Sesi || '1') === fS))
+    .sort((a, b) => (String(a.Sesi) + a.Ruang + String(a.NoMeja).padStart(3, '0')).localeCompare(String(b.Sesi) + b.Ruang + String(b.NoMeja).padStart(3, '0')));
+  const perRuang = {};
+  siswa.forEach(x => { const k = x.Sesi + '|' + x.Ruang; (perRuang[k] = perRuang[k] || []).push(x); });
+  const pages = Object.keys(perRuang).reduce((a, k) => a.concat(chunk(perRuang[k], 6)), []);
+  return (
+    <>
+      <div className="card no-print">
+        <div className="row">
+          <select value={fR} onChange={e => setFR(e.target.value)} style={{ width: 180 }}><option value="">Semua ruang</option>{d.ruang.map(r => <option key={r.Kode} value={r.Kode}>{r.Nama}</option>)}</select>
+          {sesiList.length > 1 && <select value={fS} onChange={e => setFS(e.target.value)} style={{ width: 140 }}><option value="">Semua sesi</option>{sesiList.map(x => <option key={x} value={x}>Sesi {x}</option>)}</select>}
+          <button className="btn primary" onClick={() => window.print()} disabled={!siswa.length}>🖨 Cetak {siswa.length} kartu meja ({pages.length} lembar)</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>6 kartu per lembar A4, setiap ruang mulai di lembar baru, urut nomor meja — tinggal gunting dan tempel di pojok kanan atas meja. Kartu meja <b>tidak memuat password</b>, aman ditempel. Printer: A4, skala 100%, "Background graphics" aktif.</p>
+      </div>
+      {pages.map((pg, i) => (
+        <div className="page" key={i}>
+          <div className="meja-grid">
+            {pg.map(x => (
+              <div className="meja" key={x.NoPeserta}>
+                <div className="meja-head">
+                  {s.logo_url ? <img src={driveImg(s.logo_url)} alt="" /> : null}
+                  <div className="t">
+                    <div className="t1">KARTU MEJA PESERTA</div>
+                    <div>{s.nama_ujian} TP {s.tahun_pelajaran}</div>
+                    <div style={{ fontWeight: 700 }}>{s.nama_sekolah}</div>
+                  </div>
+                </div>
+                <div className="meja-body">
+                  <div className="meja-no"><span>MEJA</span><b>{x.NoMeja}</b></div>
+                  <div className="meja-info">
+                    <div className="np">{x.NoPeserta}</div>
+                    <div className="nm">{x.Nama}</div>
+                    <div className="kl">Kelas {x.Kelas || ROMAWI[x.Tingkat]} · {nRuang[x.Ruang] || x.Ruang}{sesiList.length > 1 ? ' · Sesi ' + x.Sesi : ''}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /* ---------------- Berita Acara ---------------- */
 function terbilang(n) {
   const a = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
@@ -1637,12 +1705,12 @@ const MENU = {
     ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
     ['sec', 'Ujian'], ['monitor', '📡 Monitoring'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
-    ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
+    ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
     ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
   ],
   guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -1671,7 +1739,7 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
-    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />
   };
   const allowed = MENU[user.peran].map(m => m[0]);
 
