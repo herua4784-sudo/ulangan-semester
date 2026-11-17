@@ -1620,6 +1620,268 @@ function PengaturanPage() {
   );
 }
 
+/* ---------------- Nilai & Koreksi (Tahap 4) ---------------- */
+const fmtN = x => x == null || x === '' ? '–' : String(Math.round(Number(x) * 10) / 10).replace('.', ',');
+
+function NilaiPage({ user }) {
+  const { notify } = useContext(Ctx);
+  const isAdmin = user.peran === 'admin';
+  const [list, setList] = useState(null);
+  const [buka, setBuka] = useState(null);
+  const [fT, setFT] = useState('');
+  const load = () => api('nilaiList', {}, { fresh: true }).then(setList).catch(e => notify(e.message, 'err'));
+  useEffect(() => { load(); }, []);
+
+  const rekapSemua = async () => {
+    try {
+      const r = await api('rekapSemua');
+      const wb = XLSX.utils.book_new();
+      Object.keys(r.kolom).sort().forEach(t => {
+        const kol = r.kolom[t];
+        const rows = r.siswa.filter(s => s.Tingkat === t).map((s, i) => {
+          const o = { No: i + 1, 'No. Peserta': s.NoPeserta, NISN: s.NISN, Nama: s.Nama, Kelas: s.Kelas };
+          kol.forEach(k => { const v = s[k]; o[k] = v == null ? '' : (typeof v === 'string' ? v.replace('.', ',') : v); });
+          return o;
+        });
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 4 }, { wch: 11 }, { wch: 13 }, { wch: 30 }, { wch: 6 }, ...kol.map(() => ({ wch: 12 }))];
+        XLSX.utils.book_append_sheet(wb, ws, 'Kelas ' + (ROMAWI[t] || t));
+      });
+      if (!wb.SheetNames.length) return notify('Belum ada hasil ulangan', 'err');
+      XLSX.writeFile(wb, 'Rekap_Nilai_Semua_Mapel.xlsx');
+      notify('Tanda * = nilai belum lengkap (uraian belum dikoreksi)');
+    } catch (e) { notify(e.message, 'err'); }
+  };
+
+  if (buka) return <NilaiDetail kode={buka} isAdmin={isAdmin} onBack={() => { setBuka(null); load(); }} />;
+  if (!list) return <div className="card muted">Memuat…</div>;
+  const shown = list.filter(p => !fT || p.Tingkat === fT);
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            <select value={fT} onChange={e => setFT(e.target.value)} style={{ width: 140 }}><option value="">Semua kelas</option><option value="10">Kelas 10</option><option value="11">Kelas 11</option><option value="12">Kelas 12</option></select>
+            <span className="muted">{shown.length} mapel</span>
+          </div>
+          {isAdmin && <button className="btn primary" onClick={rekapSemua}>⬇ Rekap nilai semua mapel (Excel)</button>}
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Nilai PG, PG kompleks, benar/salah & isian dihitung otomatis. Soal <b>uraian</b> dikoreksi guru di sini. Nilai akhir = (skor otomatis + skor uraian) ÷ skor maksimal × 100.</p>
+      </div>
+      {!list.length && <div className="card">{isAdmin ? 'Belum ada paket soal.' : 'Belum ada mapel yang Anda ampu, atau soal belum diunggah.'}</div>}
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0 }}>
+          <table className="data">
+            <thead><tr><th>Mapel</th><th>Kls</th>{isAdmin && <th>Guru</th>}<th>Peserta</th><th>Selesai</th><th>Koreksi uraian</th><th>Status nilai</th><th></th></tr></thead>
+            <tbody>
+              {shown.map(p => (
+                <tr key={p.KodeMapel}>
+                  <td><b>{p.NamaMapel}</b><div className="hint">{p.KodeMapel}</div></td>
+                  <td>{p.Tingkat}</td>
+                  {isAdmin && <td>{p.NamaGuru || '–'}</td>}
+                  <td>{p.peserta}</td>
+                  <td>{p.selesai}{p.ikut > p.selesai ? <span className="hint"> (+{p.ikut - p.selesai} berjalan)</span> : null}</td>
+                  <td>{!p.soalUraian ? <span className="muted">tidak ada uraian</span> : !p.selesai ? '–' : p.belumKoreksi ? <span className="badge b-kuning">{p.belumKoreksi} siswa belum</span> : <span className="badge b-hijau">✓ Lengkap</span>}</td>
+                  <td>{p.terkunci ? <span className="badge b-hijau">🔒 Final</span> : <span className="badge b-abu">Belum dikunci</span>}</td>
+                  <td><button className="btn sm primary" onClick={() => setBuka(p.KodeMapel)} disabled={!p.ikut}>Buka →</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function NilaiDetail({ kode, isAdmin, onBack }) {
+  const { notify } = useContext(Ctx);
+  const [d, setD] = useState(null);
+  const [tab, setTab] = useState('koreksi');
+  const [soalU, setSoalU] = useState('');
+  const [edit, setEdit] = useState({});
+  const [busy, setBusy] = useState(false);
+  const load = async () => {
+    try {
+      const r = await api('nilaiDetail', { kodeMapel: kode }, { fresh: true });
+      setD(r); setEdit({});
+      const u = r.soal.filter(s => s.jenis === 'URAIAN');
+      if (!u.length) setTab(t => t === 'koreksi' ? 'rekap' : t);
+      setSoalU(x => x || (u[0] ? u[0].no : ''));
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  useEffect(() => { load(); }, [kode]);
+  if (!d) return <div className="card muted">Memuat nilai…</div>;
+
+  const uraian = d.soal.filter(s => s.jenis === 'URAIAN');
+  const objektif = d.soal.filter(s => s.jenis !== 'URAIAN');
+  const ikut = d.siswa.filter(s => s.key);
+  const dirty = Object.keys(edit).length > 0;
+  const simpan = async () => {
+    const by = {};
+    Object.keys(edit).forEach(k => { const [key, no] = k.split('§'); (by[key] = by[key] || {})[no] = edit[k]; });
+    setBusy(true);
+    try { await api('simpanKoreksi', { kodeMapel: kode, items: Object.keys(by).map(key => ({ key, skor: by[key] })) }); notify('Koreksi tersimpan'); await load(); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  const kunci = async v => {
+    if (v && !confirm('Kunci nilai ' + d.mapel.nama + ' kelas ' + d.mapel.tingkat + '?\nGuru tidak bisa mengubah koreksi lagi.')) return;
+    try { await api('kunciNilai', { kodeMapel: kode, kunci: v }); notify(v ? 'Nilai dikunci (final)' : 'Kunci nilai dibuka'); await load(); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+  const unduh = () => {
+    const rows = d.siswa.map((s, i) => {
+      const h = s.hasil;
+      const o = { No: i + 1, 'No. Peserta': s.no, NISN: s.nisn, Nama: s.nama, Kelas: s.kelas, Status: s.status };
+      o['Skor otomatis'] = h ? h.obj : ''; o['Maks otomatis'] = h ? h.maksObj : '';
+      if (uraian.length) { uraian.forEach(u => { o['Uraian ' + u.no] = h && s.uraian[u.no] != null ? s.uraian[u.no] : ''; }); o['Skor uraian'] = h ? h.uraian : ''; o['Maks uraian'] = h ? h.maksUraian : ''; }
+      o['Nilai akhir'] = h ? h.nilai : '';
+      o.Keterangan = !h ? 'Tidak hadir' : h.belum ? 'Uraian belum dikoreksi' : (s.status !== 'SELESAI' ? 'Belum selesai' : '');
+      return o;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0] || {}).map(k => ({ wch: k === 'Nama' ? 30 : Math.max(8, k.length + 2) }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Nilai');
+    XLSX.writeFile(wb, `Nilai_${d.mapel.nama.replace(/[^\w]+/g, '_')}_Kelas_${d.mapel.tingkat}.xlsx`);
+  };
+
+  // analisis butir
+  const analisis = d.soal.map(s => {
+    if (s.jenis === 'URAIAN') {
+      const v = ikut.map(x => x.uraian[s.no]).filter(x => x != null && x !== '');
+      const rata = v.length ? v.reduce((a, b) => a + Number(b), 0) / v.length : null;
+      return { s, n: v.length, p: rata == null ? null : rata / s.skor * 100, ket: v.length + ' dikoreksi · rata-rata ' + fmtN(rata) + ' dari ' + s.skor };
+    }
+    const n = ikut.length, b = ikut.filter(x => x.hasil && x.hasil.benar[s.no]).length, kosong = ikut.filter(x => !x.jawab[s.no]).length;
+    let dist = '';
+    if (s.jenis === 'PG' || s.jenis === 'BS') {
+      const c = {}; ikut.forEach(x => { const a = x.jawab[s.no]; if (a) c[a] = (c[a] || 0) + 1; });
+      dist = Object.keys(c).sort().map(k => `${k}:${c[k]}`).join('  ');
+    }
+    return { s, n, p: n ? b / n * 100 : null, ket: `${b}/${n} benar${kosong ? ` · ${kosong} kosong` : ''}${dist ? ' · pilihan ' + dist : ''}` };
+  });
+  const kategori = p => p == null ? ['–', 'b-abu'] : p >= 70 ? ['Mudah', 'b-hijau'] : p >= 30 ? ['Sedang', 'b-biru'] : ['Sukar', 'b-merah'];
+  const nilaiAda = ikut.filter(x => x.hasil).map(x => x.hasil.nilai);
+  const rata = nilaiAda.length ? nilaiAda.reduce((a, b) => a + b, 0) / nilaiAda.length : null;
+  const su = uraian.find(u => u.no === soalU);
+
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            <button className="btn" onClick={() => { if (dirty && !confirm('Ada koreksi belum disimpan. Tetap kembali?')) return; onBack(); }}>← Daftar mapel</button>
+            <h3 style={{ margin: 0 }}>{d.mapel.nama} — Kelas {d.mapel.tingkat}</h3>
+            {d.terkunci ? <span className="badge b-hijau">🔒 Nilai final</span> : null}
+          </div>
+          <div className="row">
+            <button className="btn" onClick={unduh}>⬇ Unduh nilai (Excel)</button>
+            {isAdmin && (d.terkunci ? <button className="btn" onClick={() => kunci(false)}>Buka kunci nilai</button> : <button className="btn success" onClick={() => kunci(true)}>🔒 Kunci nilai (final)</button>)}
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <span className="muted">Ikut ulangan: <b>{ikut.length}</b> dari {d.siswa.length} · Rata-rata: <b>{fmtN(rata)}</b> · Tertinggi: <b>{fmtN(nilaiAda.length ? Math.max(...nilaiAda) : null)}</b> · Terendah: <b>{fmtN(nilaiAda.length ? Math.min(...nilaiAda) : null)}</b></span>
+        </div>
+        <div className="row" style={{ marginTop: 12, gap: 6 }}>
+          {uraian.length > 0 && <button className={'btn ' + (tab === 'koreksi' ? 'primary' : '')} onClick={() => setTab('koreksi')}>✏ Koreksi uraian</button>}
+          <button className={'btn ' + (tab === 'rekap' ? 'primary' : '')} onClick={() => setTab('rekap')}>📋 Rekap nilai</button>
+          <button className={'btn ' + (tab === 'analisis' ? 'primary' : '')} onClick={() => setTab('analisis')}>📈 Analisis soal</button>
+        </div>
+      </div>
+
+      {tab === 'koreksi' && su && (
+        <>
+          <div className="card">
+            <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+              {uraian.map(u => {
+                const sisa = ikut.filter(x => x.uraian[u.no] == null && edit[x.key + '§' + u.no] == null).length;
+                return <button key={u.no} className={'btn sm ' + (soalU === u.no ? 'primary' : '')} onClick={() => setSoalU(u.no)}>Soal {u.no} {sisa ? <span className="badge b-kuning" style={{ marginLeft: 4 }}>{sisa}</span> : '✓'}</button>;
+              })}
+            </div>
+            <div style={{ whiteSpace: 'pre-wrap', fontWeight: 600 }}>{su.q}</div>
+            {su.img && <img src={driveImg(su.img)} alt="" style={{ maxHeight: 180, marginTop: 8 }} />}
+            {su.kunci && <div className="opsi" style={{ background: '#f1f5f9', marginTop: 8 }}>Pedoman/rubrik: {su.kunci}</div>}
+            <div className="hint" style={{ marginTop: 6 }}>Skor maksimal soal ini: <b>{su.skor}</b>. Boleh desimal (mis. 2,5). Kosongkan untuk "belum dikoreksi".</div>
+          </div>
+          <div className="card" style={{ padding: 0 }}>
+            <div className="tablewrap" style={{ border: 0, maxHeight: '58vh' }}>
+              <table className="data">
+                <thead><tr><th>No. Peserta</th><th>Nama</th><th style={{ width: '55%' }}>Jawaban siswa</th><th>Skor (0–{su.skor})</th></tr></thead>
+                <tbody>
+                  {ikut.map(x => {
+                    const k = x.key + '§' + su.no;
+                    const val = edit[k] != null ? edit[k] : (x.uraian[su.no] != null ? String(x.uraian[su.no]).replace('.', ',') : '');
+                    return (
+                      <tr key={x.key}>
+                        <td style={{ fontFamily: 'monospace' }}>{x.no}</td><td>{x.nama}</td>
+                        <td style={{ whiteSpace: 'pre-wrap' }}>{x.jawab[su.no] || <span className="muted">(tidak dijawab)</span>}</td>
+                        <td><input value={val} disabled={d.terkunci} inputMode="decimal" style={{ width: 80, background: edit[k] != null ? '#fef9c3' : undefined }}
+                          onChange={e => setEdit({ ...edit, [k]: e.target.value })} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card row" style={{ justifyContent: 'space-between', position: 'sticky', bottom: 0 }}>
+            <span className="muted">{dirty ? `${Object.keys(edit).length} skor belum disimpan` : 'Semua perubahan tersimpan'}</span>
+            <button className="btn primary" disabled={!dirty || busy || d.terkunci} onClick={simpan}>{busy ? 'Menyimpan…' : '💾 Simpan koreksi'}</button>
+          </div>
+        </>
+      )}
+
+      {tab === 'rekap' && (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tablewrap" style={{ border: 0, maxHeight: '65vh' }}>
+            <table className="data">
+              <thead><tr><th>#</th><th>No. Peserta</th><th>Nama</th><th>Status</th><th>Skor otomatis</th>{uraian.length > 0 && <th>Skor uraian</th>}<th>Nilai akhir</th><th>Ket.</th></tr></thead>
+              <tbody>
+                {d.siswa.map((x, i) => (
+                  <tr key={x.no} style={!x.hasil ? { color: 'var(--muted)' } : null}>
+                    <td>{i + 1}</td><td style={{ fontFamily: 'monospace' }}>{x.no}</td><td>{x.nama}</td>
+                    <td>{x.status === 'SELESAI' ? <span className="badge b-hijau">Selesai</span> : x.status === 'TIDAK HADIR' ? <span className="badge b-abu">Tidak hadir</span> : <span className="badge b-biru">{x.status}</span>}</td>
+                    <td>{x.hasil ? `${fmtN(x.hasil.obj)} / ${x.hasil.maksObj}` : '–'}</td>
+                    {uraian.length > 0 && <td>{x.hasil ? `${fmtN(x.hasil.uraian)} / ${x.hasil.maksUraian}` : '–'}</td>}
+                    <td><b>{x.hasil ? fmtN(x.hasil.nilai) : '–'}</b></td>
+                    <td className="hint">{x.hasil && x.hasil.belum ? `${x.hasil.belum} uraian belum dikoreksi` : ''}{x.pelanggaran ? ` · ${x.pelanggaran}× pelanggaran` : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'analisis' && (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="tablewrap" style={{ border: 0, maxHeight: '65vh' }}>
+            <table className="data">
+              <thead><tr><th>No</th><th>Jenis</th><th style={{ width: '38%' }}>Soal</th><th>Kunci</th><th>Tingkat kesulitan</th><th>Rincian</th></tr></thead>
+              <tbody>
+                {analisis.map(({ s, p, ket }) => {
+                  const [kt, kc] = kategori(p);
+                  return (
+                    <tr key={s.no}>
+                      <td>{s.no}</td><td><span className="badge b-biru">{s.jenis}</span></td>
+                      <td style={{ fontSize: 12.5 }}>{String(s.q).slice(0, 140)}{String(s.q).length > 140 ? '…' : ''}</td>
+                      <td style={{ fontFamily: 'monospace' }}>{s.jenis === 'URAIAN' ? '–' : s.kunci}</td>
+                      <td><span className={'badge ' + kc}>{kt}</span>{p != null && <div style={{ height: 6, background: '#e2e8f0', borderRadius: 9, marginTop: 4, width: 90 }}><div style={{ height: '100%', width: p + '%', background: p >= 70 ? 'var(--hijau)' : p >= 30 ? 'var(--biru2)' : 'var(--merah)', borderRadius: 9 }} /></div>}<div className="hint">{p == null ? '' : fmtN(p) + '%'}</div></td>
+                      <td className="hint">{ket}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="hint" style={{ padding: '0 14px 12px' }}>Mudah: ≥ 70% siswa benar · Sedang: 30–69% · Sukar: &lt; 30%. Soal yang hampir semua siswa salah perlu diperiksa — mungkin kuncinya keliru. Jika kunci diperbaiki di Bank Soal, nilai otomatis dihitung ulang.</p>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ---------------- Monitoring Pengawas (Tahap 2) ---------------- */
 const ST_LABEL = { BELUM: ['Belum login', 'b-abu'], LOGIN: ['Sudah login', 'b-biru'], MENGERJAKAN: ['Mengerjakan', 'b-biru'], TERKUNCI: ['🔒 Terkunci', 'b-merah'], SELESAI: ['✓ Selesai', 'b-hijau'] };
 const fmtDetik = t => { if (t == null) return '–'; const m = Math.floor(t / 60), s = t % 60; return (m >= 60 ? Math.floor(m / 60) + ':' + String(m % 60).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
@@ -1847,14 +2109,14 @@ const MENU = {
   admin: [
     ['sec', 'Utama'], ['dashboard', '🏠 Dashboard'],
     ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['foto', '📷 Foto Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
-    ['sec', 'Ujian'], ['monitor', '📡 Monitoring'],
+    ['sec', 'Ujian'], ['monitor', '📡 Monitoring'], ['nilai', '📊 Nilai & Koreksi'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
     ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
     ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
   ],
-  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
+  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['nilai', '📊 Nilai & Koreksi'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian', nilai: 'Nilai & Koreksi' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -1883,7 +2145,7 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, foto: <FotoPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
-    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />, nilai: <NilaiPage user={user} />
   };
   const allowed = MENU[user.peran].map(m => m[0]);
 
