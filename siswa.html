@@ -84,6 +84,7 @@
   .kunci .btn{margin-top:18px}
   .warn{position:fixed;inset:0;z-index:60;background:rgba(217,119,6,.95);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:22px;font-weight:800;padding:24px}
   .bar{position:fixed;top:0;left:0;right:0;z-index:70;background:#fef3c7;color:#92400e;text-align:center;font-size:13px;padding:6px}
+  .infowaktu{position:fixed;top:56px;left:10px;right:10px;z-index:40;background:#b91c1c;color:#fff;font-weight:700;text-align:center;padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:15px;max-width:740px;margin:0 auto}
   .done{text-align:center}
   .done .ic{font-size:64px;color:var(--hijau)}
 </style>
@@ -448,6 +449,12 @@ function tick() {
   const sisa = c.deadline - (Date.now() + S.offset);
   const el = document.getElementById('timer');
   if (el) { el.textContent = '⏱ ' + fmtSisa(sisa); el.classList.toggle('low', sisa < 5 * 60000); }
+  // peringatan sisa waktu 5 menit & 1 menit (tampil 8 detik, tidak mengganggu pengerjaan)
+  if ($app.querySelector('.exam') && sisa > 0) {
+    const kosong = () => c.soal.filter(q => !c.jawab[q.no]).length;
+    if (!c.w5 && sisa <= 5 * 60000) { c.w5 = true; if (sisa > 60000) infoWaktu(`⏰ Waktu tinggal ${Math.ceil(sisa / 60000)} menit. ${kosong() ? kosong() + ' soal belum dijawab.' : 'Semua soal sudah dijawab.'}`); }
+    if (!c.w1 && sisa <= 60000) { c.w1 = c.w5 = true; infoWaktu(`⏰ Waktu tinggal 1 menit! ${kosong() ? kosong() + ' soal belum dijawab.' : ''} Jawaban akan terkirim otomatis.`); }
+  }
   if (sisa <= 0 && !c.habis && $app.querySelector('.exam')) {
     c.habis = true;
     aktif = false;
@@ -456,6 +463,14 @@ function tick() {
   }
 }
 setInterval(tick, 1000);
+function infoWaktu(teks) {
+  const old = document.getElementById('infowaktu'); if (old) old.remove();
+  const d = document.createElement('div');
+  d.id = 'infowaktu'; d.className = 'infowaktu'; d.textContent = teks;
+  d.onclick = () => d.remove();
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 8000);
+}
 
 /* ---------- simpan otomatis (30–60 detik acak) ---------- */
 let saveT = null, menyimpan = false;
