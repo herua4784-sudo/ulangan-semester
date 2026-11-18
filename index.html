@@ -106,17 +106,17 @@
   .meja-info .np{font-family:"Courier New",monospace;font-size:24pt;font-weight:800;letter-spacing:1px}
   .meja-info .nm{font-size:15pt;font-weight:700;margin-top:1mm;line-height:1.2}
   .meja-info .kl{font-size:11pt;margin-top:1mm}
-  .denah-depan{display:flex;justify-content:space-between;align-items:center;gap:6mm;margin:2mm 0 4mm}
-  .denah-depan .papan{flex:1;text-align:center;border:2px solid #000;background:#e5e7eb;padding:2mm;font-weight:800;letter-spacing:3px}
-  .denah-depan .pengawas{border:2px dashed #000;padding:2mm 4mm;font-size:9pt;font-weight:700}
-  .denah{display:grid;gap:3mm}
+  .denah-depan{display:grid;column-gap:3mm;row-gap:3mm;margin:2mm 0 6mm}
+  .denah-depan .papan{text-align:center;border:2.5px solid #000;background:#374151;color:#fff;padding:1.6mm;font-weight:800;letter-spacing:3px;font-size:9.5pt;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .denah-depan .pengawas{text-align:center;border:2px solid #000;background:#fef3c7;padding:3mm 1mm;font-size:8.5pt;font-weight:800;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .denah-depan .pintu{text-align:center;border:2px dashed #000;border-left:5px solid #000;padding:3mm 1mm;font-size:8.5pt;font-weight:800}
+  .denah{display:grid;column-gap:3mm;row-gap:3mm}
   .dm{border:1.3px solid #000;border-radius:2mm;overflow:hidden;break-inside:avoid;min-height:24mm;display:flex;flex-direction:column}
   .dm-no{background:#1e3a8a;color:#fff;text-align:center;font-weight:800;font-size:9.5pt;padding:.8mm 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .dm-isi{display:flex;gap:2mm;align-items:center;padding:1.5mm 2mm;flex:1}
   .dm-isi img{width:11mm;height:14.5mm;object-fit:cover;border:1px solid #999;flex-shrink:0}
   .dm-np{font-family:"Courier New",monospace;font-weight:800;font-size:9.5pt}
   .dm-nm{font-size:8.5pt;font-weight:600;line-height:1.2}
-  .denah-pintu{text-align:right;font-size:9pt;font-weight:700;margin-top:4mm}
   .kop{display:flex;align-items:center;gap:4mm;border-bottom:3px double #000;padding-bottom:2mm;margin-bottom:4mm}
   .kop img{width:20mm;height:20mm;object-fit:contain}
   .kop .t{flex:1;text-align:center;line-height:1.3}
@@ -1369,7 +1369,7 @@ function DenahPage() {
           <label style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={pakaiFoto} onChange={e => setPakaiFoto(e.target.checked)} style={{ width: 'auto' }} /> Tampilkan foto</label>
           <button className="btn primary" onClick={() => window.print()} disabled={!keys.length}>🖨 Cetak {keys.length} denah</button>
         </div>
-        <p className="hint" style={{ marginBottom: 0 }}>Satu lembar per ruang. Meja diurutkan dari depan (dekat papan tulis), kiri ke kanan, sesuai nomor meja di kartu peserta & kartu meja. Sesuaikan "Meja per baris" dengan susunan meja di ruang.</p>
+        <p className="hint" style={{ marginBottom: 0 }}>Satu lembar per ruang. Papan tulis selebar 2 meja di tengah depan, meja pengawas di depan papan tulis, pintu masuk di kiri pengawas. Meja siswa diurutkan dari depan, kiri ke kanan; baris belakang yang tidak penuh otomatis di tengah, sesuai nomor meja di kartu peserta & kartu meja. Sesuaikan "Meja per baris" dengan susunan meja di ruang.</p>
       </div>
       {keys.map(k => {
         const [sesi, ruang] = k.split('|');
@@ -1384,10 +1384,18 @@ function DenahPage() {
               <tr><td>Ruang</td><td>: <b>{nRuang[ruang] || ruang}</b></td><td style={{ paddingLeft: '12mm' }}>Kelas</td><td>: {kelas}</td></tr>
               <tr><td>Jumlah peserta</td><td>: {ps.length} orang</td>{banyakSesi && <><td style={{ paddingLeft: '12mm' }}>Sesi</td><td>: {sesi}</td></>}</tr>
             </tbody></table>
-            <div className="denah-depan"><div className="papan">PAPAN TULIS</div><div className="pengawas">MEJA PENGAWAS</div></div>
-            <div className="denah" style={{ gridTemplateColumns: `repeat(${kolom}, 1fr)` }}>
-              {ps.map(x => (
-                <div className="dm" key={x.NoPeserta}>
+            <div className="denah-depan" style={{ gridTemplateColumns: `repeat(${kolom * 2}, 1fr)` }}>
+              <div className="papan" style={{ gridColumn: `${kolom - 1} / span 4`, gridRow: 1 }}>PAPAN TULIS</div>
+              <div className="pengawas" style={{ gridColumn: `${kolom} / span 2`, gridRow: 2 }}>MEJA PENGAWAS</div>
+              <div className="pintu" style={{ gridColumn: '1 / span 2', gridRow: 2 }}>🚪 PINTU MASUK</div>
+            </div>
+            <div className="denah" style={{ gridTemplateColumns: `repeat(${kolom * 2}, 1fr)` }}>
+              {ps.map((x, i) => {
+                // baris terakhir yang tidak penuh diletakkan di tengah kelas
+                const sisa = ps.length % kolom, awalAkhir = ps.length - sisa;
+                const posisi = sisa && i >= awalAkhir ? `${(kolom - sisa) + 1 + (i - awalAkhir) * 2} / span 2` : 'span 2';
+                return (
+                <div className="dm" key={x.NoPeserta} style={{ gridColumn: posisi }}>
                   <div className="dm-no">MEJA {x.NoMeja}</div>
                   <div className="dm-isi">
                     {pakaiFoto && foto[fotoKey(x)] && <img src={foto[fotoKey(x)]} alt="" />}
@@ -1397,9 +1405,9 @@ function DenahPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
-            <div className="denah-pintu">⬇ PINTU MASUK (belakang)</div>
           </div>
         );
       })}
