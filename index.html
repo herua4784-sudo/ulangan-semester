@@ -872,7 +872,7 @@ function JadwalPage() {
             </tbody>
           </table>
           <p style={{ fontSize: '9pt' }}>Waktu dalam WITA. Peserta hadir 15 menit sebelum ulangan dimulai dan wajib membawa kartu peserta.</p>
-          <div className="dh-foot"><div /><div style={{ textAlign: 'center', minWidth: '65mm' }}>{st.kota}, {st.tgl_ttd_jadwal ? fmtTanggal(st.tgl_ttd_jadwal, false) : '......................'}<br />Kepala Sekolah,<div className="sp" /><b><u>{st.kepala_sekolah}</u></b><br />NIP. {st.nip_kepsek}</div></div>
+          <div className="dh-foot"><div /><div style={{ textAlign: 'center', minWidth: '65mm' }}>{st.kota}, {st.tgl_ttd_jadwal ? fmtTanggal(st.tgl_ttd_jadwal, false) : '......................'}<br />Ketua Panitia {st.nama_ujian ? kapital(String(st.nama_ujian).toLowerCase().replace(/\s+(ganjil|genap)$/, '')) : 'Ulangan Semester'},<div className="sp" /><b><u>{st.ketua_panitia || '.......................................'}</u></b><br />NIP. {st.nip_ketua_panitia || '-'}</div></div>
         </div>
       </>
     );
@@ -1768,7 +1768,8 @@ const SETTING_FIELDS = [
   ['kop_baris1', 'Kop baris 1 (opsional)'], ['kop_baris2', 'Kop baris 2 (opsional)'],
   ['nama_sekolah', 'Nama sekolah'], ['alamat', 'Alamat sekolah'], ['kota', 'Kota (tempat tanda tangan)'],
   ['logo_url', 'Link logo sekolah (Google Drive / URL gambar)'],
-  ['kop_gambar', 'Link GAMBAR KOP utuh (opsional, menggantikan kop teks di daftar hadir)'], ['kepala_sekolah', 'Nama kepala sekolah'], ['nip_kepsek', 'NIP kepala sekolah']
+  ['kop_gambar', 'Link GAMBAR KOP utuh (opsional, menggantikan kop teks di daftar hadir)'], ['kepala_sekolah', 'Nama kepala sekolah'], ['nip_kepsek', 'NIP kepala sekolah'],
+  ['ketua_panitia', 'Nama ketua panitia (tanda tangan jadwal)'], ['nip_ketua_panitia', 'NIP ketua panitia']
 ];
 function PengaturanPage() {
   const { notify } = useContext(Ctx);
