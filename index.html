@@ -843,6 +843,10 @@ function JadwalPage() {
       <>
         <div className="card no-print row">
           <button className="btn" onClick={() => setView('edit')}>← Kembali</button>
+          <label style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'center' }}>Tanggal tanda tangan
+            <input type="date" value={st.tgl_ttd_jadwal || ''} style={{ width: 160, marginTop: 0 }}
+              onChange={e => { const v = e.target.value; setSt({ ...st, tgl_ttd_jadwal: v }); api('saveSettings', { settings: { tgl_ttd_jadwal: v } }).catch(err => notify(err.message, 'err')); }} />
+          </label>
           <button className="btn primary" onClick={() => window.print()}>🖨 Cetak jadwal</button>
           {dirty && <span style={{ color: 'var(--kuning)' }}>⚠ Ada perubahan belum disimpan</span>}
         </div>
@@ -868,7 +872,7 @@ function JadwalPage() {
             </tbody>
           </table>
           <p style={{ fontSize: '9pt' }}>Waktu dalam WITA. Peserta hadir 15 menit sebelum ulangan dimulai dan wajib membawa kartu peserta.</p>
-          <div className="dh-foot"><div /><div style={{ textAlign: 'center', minWidth: '65mm' }}>{st.kota}, ......................<br />Kepala Sekolah,<div className="sp" /><b><u>{st.kepala_sekolah}</u></b><br />NIP. {st.nip_kepsek}</div></div>
+          <div className="dh-foot"><div /><div style={{ textAlign: 'center', minWidth: '65mm' }}>{st.kota}, {st.tgl_ttd_jadwal ? fmtTanggal(st.tgl_ttd_jadwal, false) : '......................'}<br />Kepala Sekolah,<div className="sp" /><b><u>{st.kepala_sekolah}</u></b><br />NIP. {st.nip_kepsek}</div></div>
         </div>
       </>
     );
