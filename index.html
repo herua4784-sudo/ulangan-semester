@@ -106,6 +106,17 @@
   .meja-info .np{font-family:"Courier New",monospace;font-size:24pt;font-weight:800;letter-spacing:1px}
   .meja-info .nm{font-size:15pt;font-weight:700;margin-top:1mm;line-height:1.2}
   .meja-info .kl{font-size:11pt;margin-top:1mm}
+  .denah-depan{display:flex;justify-content:space-between;align-items:center;gap:6mm;margin:2mm 0 4mm}
+  .denah-depan .papan{flex:1;text-align:center;border:2px solid #000;background:#e5e7eb;padding:2mm;font-weight:800;letter-spacing:3px}
+  .denah-depan .pengawas{border:2px dashed #000;padding:2mm 4mm;font-size:9pt;font-weight:700}
+  .denah{display:grid;gap:3mm}
+  .dm{border:1.3px solid #000;border-radius:2mm;overflow:hidden;break-inside:avoid;min-height:24mm;display:flex;flex-direction:column}
+  .dm-no{background:#1e3a8a;color:#fff;text-align:center;font-weight:800;font-size:9.5pt;padding:.8mm 0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dm-isi{display:flex;gap:2mm;align-items:center;padding:1.5mm 2mm;flex:1}
+  .dm-isi img{width:11mm;height:14.5mm;object-fit:cover;border:1px solid #999;flex-shrink:0}
+  .dm-np{font-family:"Courier New",monospace;font-weight:800;font-size:9.5pt}
+  .dm-nm{font-size:8.5pt;font-weight:600;line-height:1.2}
+  .denah-pintu{text-align:right;font-size:9pt;font-weight:700;margin-top:4mm}
   .kop{display:flex;align-items:center;gap:4mm;border-bottom:3px double #000;padding-bottom:2mm;margin-bottom:4mm}
   .kop img{width:20mm;height:20mm;object-fit:contain}
   .kop .t{flex:1;text-align:center;line-height:1.3}
@@ -1333,6 +1344,178 @@ function KartuPage() {
   );
 }
 
+/* ---------------- Denah Meja (ditempel di pintu ruang) ---------------- */
+function DenahPage() {
+  const d = useCetakData();
+  const foto = useFoto();
+  const [kolom, setKolom] = useState(4);
+  const [fR, setFR] = useState('');
+  const [pakaiFoto, setPakaiFoto] = useState(true);
+  if (!d) return <div className="card muted">Memuat data cetak…</div>;
+  const s = d.settings;
+  const grup = {};
+  d.siswa.filter(x => x.Ruang && (!fR || x.Ruang === fR)).forEach(x => { const k = (x.Sesi || '1') + '|' + x.Ruang; (grup[k] = grup[k] || []).push(x); });
+  const keys = Object.keys(grup).sort();
+  const nRuang = Object.fromEntries(d.ruang.map(r => [r.Kode, r.Nama]));
+  const banyakSesi = new Set(d.siswa.map(x => String(x.Sesi || '1'))).size > 1;
+  return (
+    <>
+      <div className="card no-print">
+        <div className="row">
+          <select value={fR} onChange={e => setFR(e.target.value)} style={{ width: 180 }}><option value="">Semua ruang</option>{d.ruang.map(r => <option key={r.Kode} value={r.Kode}>{r.Nama}</option>)}</select>
+          <label style={{ margin: 0 }}>Meja per baris
+            <select value={kolom} onChange={e => setKolom(Number(e.target.value))} style={{ width: 90 }}>{[3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}</select>
+          </label>
+          <label style={{ margin: 0, display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={pakaiFoto} onChange={e => setPakaiFoto(e.target.checked)} style={{ width: 'auto' }} /> Tampilkan foto</label>
+          <button className="btn primary" onClick={() => window.print()} disabled={!keys.length}>🖨 Cetak {keys.length} denah</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Satu lembar per ruang. Meja diurutkan dari depan (dekat papan tulis), kiri ke kanan, sesuai nomor meja di kartu peserta & kartu meja. Sesuaikan "Meja per baris" dengan susunan meja di ruang.</p>
+      </div>
+      {keys.map(k => {
+        const [sesi, ruang] = k.split('|');
+        const ps = grup[k].sort((a, b) => Number(a.NoMeja) - Number(b.NoMeja));
+        const kelas = [...new Set(ps.map(x => x.Kelas || ROMAWI[x.Tingkat]))].join(', ');
+        return (
+          <div className="page" key={k}>
+            <Kop s={s} />
+            <p className="judul-cetak">DENAH TEMPAT DUDUK PESERTA</p>
+            <p className="sub-cetak">{s.nama_ujian} TAHUN PELAJARAN {s.tahun_pelajaran}</p>
+            <table className="info-cetak"><tbody>
+              <tr><td>Ruang</td><td>: <b>{nRuang[ruang] || ruang}</b></td><td style={{ paddingLeft: '12mm' }}>Kelas</td><td>: {kelas}</td></tr>
+              <tr><td>Jumlah peserta</td><td>: {ps.length} orang</td>{banyakSesi && <><td style={{ paddingLeft: '12mm' }}>Sesi</td><td>: {sesi}</td></>}</tr>
+            </tbody></table>
+            <div className="denah-depan"><div className="papan">PAPAN TULIS</div><div className="pengawas">MEJA PENGAWAS</div></div>
+            <div className="denah" style={{ gridTemplateColumns: `repeat(${kolom}, 1fr)` }}>
+              {ps.map(x => (
+                <div className="dm" key={x.NoPeserta}>
+                  <div className="dm-no">MEJA {x.NoMeja}</div>
+                  <div className="dm-isi">
+                    {pakaiFoto && foto[fotoKey(x)] && <img src={foto[fotoKey(x)]} alt="" />}
+                    <div>
+                      <div className="dm-np">{x.NoPeserta}</div>
+                      <div className="dm-nm">{x.Nama}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="denah-pintu">⬇ PINTU MASUK (belakang)</div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ---------------- Kartu Login Guru / Pengawas ---------------- */
+function KartuGuruPage() {
+  const { notify } = useContext(Ctx);
+  const [guru, setGuru] = useState(null);
+  const [mapel, setMapel] = useState([]);
+  const [set, setSet] = useState(null);
+  const [pilih, setPilih] = useState({});
+  const [kartu, setKartu] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const alamat = location.href.split('#')[0].split('?')[0];
+  useEffect(() => {
+    Promise.all([api('getTable', { name: 'Guru' }), api('getTable', { name: 'Mapel' }), api('getSettings')]).then(([g, m, s]) => {
+      const aktif = g.rows.filter(x => x.Kode && x.Aktif !== 'Tidak');
+      setGuru(aktif); setMapel(m.rows); setSet(s);
+      setPilih(Object.fromEntries(aktif.map(x => [x.Kode, true])));
+    }).catch(e => notify(e.message, 'err'));
+  }, []);
+  if (!guru || !set) return <div className="card muted">Memuat…</div>;
+  const ampu = kode => mapel.filter(m => m.KodeGuru === kode).map(m => `${m.Nama} ${m.Tingkat}`);
+  const dipilih = guru.filter(g => pilih[g.Kode]);
+  const buat = async () => {
+    if (!confirm(`Buat PASSWORD BARU untuk ${dipilih.length} guru lalu cetak kartunya?\n\nPassword lama guru yang dipilih TIDAK BERLAKU lagi. Password baru hanya tampil sekali — langsung cetak / unduh.`)) return;
+    setBusy(true);
+    try { setKartu(await api('resetPasswordGuruBanyak', { kodes: dipilih.map(g => g.Kode) })); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  const unduh = () => {
+    const ws = XLSX.utils.aoa_to_sheet([['Kode', 'Nama', 'NIP', 'Username', 'Password', 'Alamat'], ...kartu.map(k => [k.kode, k.nama, k.nip, k.username, k.password, alamat])]);
+    ws['!cols'] = [{ wch: 8 }, { wch: 34 }, { wch: 20 }, { wch: 10 }, { wch: 12 }, { wch: 50 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Akun Guru'); XLSX.writeFile(wb, 'Akun_Guru_RAHASIA.xlsx');
+  };
+
+  if (kartu) return (
+    <>
+      <div className="card no-print">
+        <div className="ok">✓ Password baru untuk {kartu.length} guru sudah dibuat. <b>Cetak atau unduh sekarang</b> — tidak bisa ditampilkan lagi setelah halaman ini ditutup.</div>
+        <div className="row">
+          <button className="btn primary" onClick={() => window.print()}>🖨 Cetak {kartu.length} kartu ({Math.ceil(kartu.length / 8)} lembar)</button>
+          <button className="btn" onClick={unduh}>⬇ Unduh daftar akun (Excel)</button>
+          <button className="btn" onClick={() => { if (confirm('Tutup? Password yang tampil tidak bisa dilihat lagi.')) setKartu(null); }}>Selesai</button>
+        </div>
+      </div>
+      {chunk(kartu, 8).map((pg, i) => (
+        <div className="page" key={i}>
+          <div className="kartu-grid">
+            {pg.map(k => (
+              <div className="kartu" key={k.kode}>
+                <div className="kartu-head">
+                  {set.logo_url ? <img src={driveImg(set.logo_url)} alt="" /> : null}
+                  <div className="t">
+                    <div className="t1">KARTU LOGIN GURU / PENGAWAS</div>
+                    <div>{set.nama_ujian} TP {set.tahun_pelajaran}</div>
+                    <div style={{ fontWeight: 700 }}>{set.nama_sekolah}</div>
+                  </div>
+                </div>
+                <div className="kartu-body">
+                  <div className="kartu-left"><QR text={alamat} /><div style={{ fontSize: '5.5pt', textAlign: 'center' }}>Scan untuk<br />buka aplikasi</div></div>
+                  <div className="kartu-right">
+                    <table><tbody>
+                      <tr><td>Nama</td><td>:</td><td><b>{k.nama}</b></td></tr>
+                      {k.nip ? <tr><td>NIP</td><td>:</td><td>{k.nip}</td></tr> : null}
+                      <tr><td>Username</td><td>:</td><td className="cred">{k.username}</td></tr>
+                      <tr><td>Password</td><td>:</td><td className="cred">{k.password}</td></tr>
+                      <tr><td>Mengampu</td><td>:</td><td style={{ fontSize: '6.8pt' }}>{ampu(k.kode).join(', ') || '– (pengawas)'}</td></tr>
+                    </tbody></table>
+                    <div style={{ fontSize: '6.3pt', lineHeight: 1.3, borderTop: '1px dashed #999', paddingTop: '1mm' }}>
+                      Menu: Soal Saya · Nilai & Koreksi · Monitoring (pengawas)<br />
+                      <b>RAHASIA</b> — jangan dibagikan. Lupa password? Hubungi admin.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+
+  return (
+    <div className="card">
+      <p style={{ marginTop: 0 }}>Kartu berisi <b>username & password</b> untuk login guru/pengawas, QR menuju aplikasi, dan daftar mapel yang diampu.</p>
+      <div className="err" style={{ background: '#fef3c7', color: '#92400e' }}>Password disimpan teracak (tidak bisa dibaca ulang), jadi mencetak kartu = <b>membuat password baru</b> untuk guru yang dicentang. Password lama mereka tidak berlaku lagi.</div>
+      <div className="row" style={{ marginBottom: 10 }}>
+        <button className="btn sm" onClick={() => setPilih(Object.fromEntries(guru.map(g => [g.Kode, true])))}>Pilih semua</button>
+        <button className="btn sm" onClick={() => setPilih(Object.fromEntries(guru.map(g => [g.Kode, g.SudahAdaPassword !== 'Ya'])))}>Hanya yang belum punya password</button>
+        <button className="btn sm" onClick={() => setPilih({})}>Kosongkan</button>
+        <span className="muted">{dipilih.length} dari {guru.length} dipilih</span>
+      </div>
+      <div className="tablewrap" style={{ maxHeight: '50vh' }}>
+        <table className="data">
+          <thead><tr><th></th><th>Kode</th><th>Nama</th><th>Mengampu</th><th>Password</th></tr></thead>
+          <tbody>
+            {guru.map(g => (
+              <tr key={g.Kode}>
+                <td><input type="checkbox" checked={!!pilih[g.Kode]} onChange={e => setPilih({ ...pilih, [g.Kode]: e.target.checked })} style={{ width: 'auto' }} /></td>
+                <td>{g.Kode}</td><td>{g.Nama}</td><td className="hint">{ampu(g.Kode).join(', ') || 'Pengawas saja'}</td>
+                <td>{g.SudahAdaPassword === 'Ya' ? <span className="badge b-hijau">Sudah ada</span> : <span className="badge b-abu">Belum</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button className="btn primary" style={{ marginTop: 12 }} disabled={!dipilih.length || busy} onClick={buat}>{busy ? 'Membuat…' : `🔑 Buat password baru & siapkan ${dipilih.length} kartu`}</button>
+    </div>
+  );
+}
+
 /* ---------------- Kartu Meja (ditempel di meja ujian) ---------------- */
 function KartuMejaPage() {
   const d = useCetakData();
@@ -2111,12 +2294,12 @@ const MENU = {
     ['sec', 'Data Master'], ['siswa', '👨‍🎓 Peserta'], ['foto', '📷 Foto Peserta'], ['guru', '👩‍🏫 Guru'], ['mapel', '📚 Mapel & Pengampu'], ['ruang', '🚪 Ruang'], ['jadwal', '🗓 Jadwal'],
     ['sec', 'Ujian'], ['monitor', '📡 Monitoring'], ['nilai', '📊 Nilai & Koreksi'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
-    ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
+    ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['denah', '🗺 Denah Meja'], ['kguru', '🔑 Kartu Login Guru'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
     ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
   ],
   guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['nilai', '📊 Nilai & Koreksi'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian', nilai: 'Nilai & Koreksi' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', denah: 'Cetak Denah Meja', kguru: 'Cetak Kartu Login Guru', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian', nilai: 'Nilai & Koreksi' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -2145,7 +2328,7 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, foto: <FotoPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
-    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />, nilai: <NilaiPage user={user} />
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, denah: <DenahPage />, kguru: <KartuGuruPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />, nilai: <NilaiPage user={user} />
   };
   const allowed = MENU[user.peran].map(m => m[0]);
 
