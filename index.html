@@ -2420,6 +2420,24 @@ function bacaKDRaporLama(wb) {
   });
   return hasil;
 }
+/** File KD siap impor (sheet "KD Rapor": Kelas, Kode, Mata Pelajaran, KD Pengetahuan, KD Keterampilan). null jika bukan format ini. */
+function bacaKDTemplate(wb) {
+  const nm = wb.SheetNames.find(n => normN(n) === 'kd rapor');
+  if (!nm) return null;
+  const a = XLSX.utils.sheet_to_json(wb.Sheets[nm], { header: 1, defval: '', raw: false });
+  const h = (a[0] || []).map(x => normN(x));
+  const col = re => h.findIndex(x => re.test(x));
+  const cK = col(/^kelas/), cKode = col(/^kode/), cN = col(/mata pelajaran|^mapel/), cP = col(/pengetahuan/), cT = col(/keterampilan/);
+  if (cP < 0 || cT < 0) return null;
+  const kk = v => { const t = String(v || '').trim().toUpperCase(); return { X: '10', XI: '11', XII: '12' }[t] || t; };
+  return a.slice(1).map(r => ({ kelas: kk(r[cK]), kode: String(r[cKode] || '').trim().toUpperCase(), nama: String(r[cN] || '').trim(), P: String(r[cP] || '').trim(), K: String(r[cT] || '').trim() }))
+    .filter(r => r.P || r.K).map(r => ({ ...r, sheet: r.kode || r.nama }));
+}
+/** Cocokkan baris file KD dengan mapel aplikasi: kode+kelas persis (mis. MTK11) → nama/sinonim. */
+function cocokBarisKD(r, mapel, tingkat) {
+  const persis = r.kode && mapel.find(m => String(m.Kode).toUpperCase() === r.kode + tingkat);
+  return persis ? persis.Kode : cocokMapelKD(r, mapel);
+}
 const SINONIM_MAPEL = [['agama', 'PAI'], ['ppkn', 'PPKN'], ['pancasila', 'PPKN'], ['b.ind', 'BIND'], ['indonesia', 'BIND'], ['b.ing', 'BING'], ['inggris', 'BING'], ['matematika', 'MTK'],
   ['seni', 'SBD'], ['penjaskes', 'PJOK'], ['jasmani', 'PJOK'], ['pjok', 'PJOK'], ['prakarya', 'PKWU'], ['sejarah', 'SEJ'], ['geografi', 'GEO'], ['sosiologi', 'SOS'],
   ['ekonomi', 'EKO'], ['fisika', 'FIS'], ['kimia', 'KIM'], ['biologi', 'BIO'], ['informatika', 'INF'], ['mulok', 'MULOK'], ['muatan lokal', 'MULOK']];
@@ -2432,8 +2450,15 @@ function cocokMapelKD(x, mapel) {
   const kata = (nm + ' ' + sh).split(/[^a-z]+/).filter(w => w.length >= 4 && !umum.test(w));
   const khas = mapel.find(m => kata.some(w => ['arab', 'kutai', 'jepang', 'jerman', 'mandarin'].includes(w) && normN(m.Nama + ' ' + m.NamaUlangan).includes(w)));
   if (khas) return khas.Kode;
+  const lanjut = /peminatan|lanjut|minat/.test(nm);
+  const namaM = m => normN(m.Nama + ' ' + (m.NamaUlangan || ''));
   const sn = SINONIM_MAPEL.find(([w]) => (nm + ' ' + sh).includes(w));
-  if (sn) { const m = mapel.find(m => String(m.Kode).toUpperCase().replace(/\d+$/, '') === sn[1]); if (m) return m.Kode; }
+  if (sn) {
+    const base = m => String(m.Kode).toUpperCase().replace(/\d+$/, '');
+    const kand = mapel.filter(m => base(m) === sn[1] || namaM(m).includes(sn[0]));
+    const m = kand.find(m => /lanjut|peminatan|minat/.test(namaM(m)) === lanjut) || (lanjut ? null : kand[0]);
+    if (m) return m.Kode;
+  }
   return '';
 }
 
@@ -2548,9 +2573,11 @@ function RaporNilaiDetail({ kode, onBack }) {
   };
   const ambilKD = async f => {
     try {
-      const daftar = bacaKDRaporLama(await readXlsx(f));
-      if (!daftar.length) throw new Error('Tidak ditemukan sheet nilai mapel (kolom DESKRIPSI) di file ini');
-      const cocok = daftar.find(x => cocokMapelKD(x, [m]) === m.Kode);
+      const wb = await readXlsx(f);
+      const tpl = bacaKDTemplate(wb);
+      const daftar = tpl ? tpl.filter(r => r.kelas === m.Tingkat) : bacaKDRaporLama(wb);
+      if (!daftar.length) throw new Error(tpl ? 'File KD ini tidak berisi baris untuk kelas ' + m.Tingkat : 'Tidak ditemukan sheet nilai mapel (kolom DESKRIPSI) di file ini');
+      const cocok = daftar.find(x => (tpl ? cocokBarisKD(x, [m], m.Tingkat) : cocokMapelKD(x, [m])) === m.Kode);
       if (cocok) { setKd({ P: cocok.P, K: cocok.K }); setDirty(true); notify('KD diambil dari sheet "' + cocok.sheet + '". Periksa lalu Simpan.'); }
       else setKdFile(daftar);
     } catch (e) { notify(e.message, 'err'); }
@@ -2703,7 +2730,16 @@ function KDImport({ mapel, onDone }) {
   const mk = mapel.filter(m => m.Tingkat === tk);
   const baca = async f => {
     try {
-      const d = bacaKDRaporLama(await readXlsx(f));
+      const wb = await readXlsx(f);
+      const tpl = bacaKDTemplate(wb);
+      if (tpl) {
+        const d = tpl.filter(r => r.kelas === tk);
+        if (!d.length) throw new Error('File KD ini tidak berisi baris untuk Kelas ' + (ROMAWI[tk] || tk));
+        const dipakai = {};
+        setList(d.map(x => { let kode = cocokBarisKD(x, mk, tk); if (dipakai[kode]) kode = ''; if (kode) dipakai[kode] = 1; return { ...x, kode, pakai: !!kode }; }));
+        return;
+      }
+      const d = bacaKDRaporLama(wb);
       if (!d.length) throw new Error('Tidak ditemukan sheet nilai mapel (kolom DESKRIPSI) di file ini');
       setList(d.map(x => { const kode = cocokMapelKD(x, mk); return { ...x, kode, pakai: !!kode }; }));
     } catch (e) { notify(e.message, 'err'); }
@@ -2722,7 +2758,7 @@ function KDImport({ mapel, onDone }) {
   return (
     <div className="card">
       <h3 style={{ marginTop: 0 }}>Ambil KD dari file rapor lama</h3>
-      <p className="hint">Upload file rapor Excel sekolah (.xls/.xlsx). Teks KD diambil dari rumus deskripsi di tiap sheet mapel, lalu dicocokkan dengan mapel aplikasi. KD berlaku per kelas, jadi pilih kelas sesuai file.</p>
+      <p className="hint">Pilih <b>file KD siap impor</b> (sheet "KD Rapor") atau <b>file rapor Excel lama</b> sekolah (.xls/.xlsx). Teks KD dicocokkan dengan mapel aplikasi; periksa pasangannya sebelum menyimpan. KD berlaku per kelas, jadi pilih kelas dulu.</p>
       <div className="row">
         <select value={tk} onChange={e => { setTk(e.target.value); setList(null); }} style={{ width: 120 }}><option value="10">Kelas X</option><option value="11">Kelas XI</option><option value="12">Kelas XII</option></select>
         <FilePick label="📂 Pilih file rapor" onFile={baca} />
