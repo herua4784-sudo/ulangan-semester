@@ -85,6 +85,10 @@
   .warn{position:fixed;inset:0;z-index:60;background:rgba(217,119,6,.95);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;font-size:22px;font-weight:800;padding:24px}
   .bar{position:fixed;top:0;left:0;right:0;z-index:70;background:#fef3c7;color:#92400e;text-align:center;font-size:13px;padding:6px}
   .infowaktu{position:fixed;top:56px;left:10px;right:10px;z-index:40;background:#b91c1c;color:#fff;font-weight:700;text-align:center;padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:15px;max-width:740px;margin:0 auto}
+  .audio{background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:12px;padding:12px;margin-bottom:14px}
+  .aud-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .aud-bar{height:8px;background:#c7d2fe;border-radius:9px;overflow:hidden;margin-bottom:6px}
+  .aud-bar div{height:100%;background:var(--biru2);transition:width .3s linear}
   .done{text-align:center}
   .done .ic{font-size:64px;color:var(--hijau)}
 </style>
@@ -126,6 +130,12 @@ function driveImg(url) {
   url = String(url || '').trim();
   const m = url.match(/[-\w]{25,}/);
   if (/drive\.google|docs\.google/.test(url) && m) return 'https://lh3.googleusercontent.com/d/' + m[0];
+  return url;
+}
+function mediaUrl(url) {
+  url = String(url || '').trim();
+  const m = url.match(/[-\w]{25,}/);
+  if (/drive\.google|docs\.google/.test(url) && m) return 'https://drive.google.com/uc?export=download&id=' + m[0];
   return url;
 }
 function bar(msg) { if (msg) { $bar.textContent = '⏳ ' + msg; $bar.classList.remove('hide'); } else $bar.classList.add('hide'); }
@@ -346,7 +356,7 @@ function simpanLokal() { ls.set(lokalKey(), JSON.stringify({ j: S.cur.jawab, r: 
 
 function mulaiUjian(u, r) {
   S.offset = r.serverNow - Date.now();
-  S.cur = { jid: u.id, mapel: r.mapel, soal: r.soal, jawab: Object.assign({}, r.jawab || {}), ragu: new Set(r.ragu || []), deadline: r.deadline, idx: 0, ver: 0, savedVer: 0, habis: false, lastSave: null, saveErr: false };
+  S.cur = { jid: u.id, mapel: r.mapel, audioMaks: r.audioMaks == null ? 2 : Number(r.audioMaks), soal: r.soal, jawab: Object.assign({}, r.jawab || {}), ragu: new Set(r.ragu || []), deadline: r.deadline, idx: 0, ver: 0, savedVer: 0, habis: false, lastSave: null, saveErr: false };
   try { const l = JSON.parse(ls.get(lokalKey()) || 'null'); if (l) { Object.assign(S.cur.jawab, l.j || {}); (l.r || []).forEach(x => S.cur.ragu.add(x)); S.cur.ver++; } } catch (e) { }
   const firstEmpty = S.cur.soal.findIndex(s => !S.cur.jawab[s.no]);
   S.cur.idx = firstEmpty > 0 ? firstEmpty : 0;
@@ -401,6 +411,7 @@ function renderSoal() {
   const c = S.cur, s = c.soal[c.idx], v = c.jawab[s.no] || '';
   let h = `<div class="jenis">${LABEL[s.jenis] || s.jenis}</div><div class="q">${esc(s.q)}</div>`;
   if (s.img) h += `<img class="qimg" src="${esc(driveImg(s.img))}" alt="gambar soal">`;
+  if (s.audio) h += `<div class="audio" id="audiobox"></div>`;
   if (s.jenis === 'PG' || s.jenis === 'PGK') {
     const pilih = new Set(v.split(','));
     h += s.opsi.map((o, i) => `<button class="opt ${pilih.has(o.k) ? 'on' : ''}" data-k="${esc(o.k)}"><b>${s.jenis === 'PGK' ? (pilih.has(o.k) ? '✓' : '') : 'ABCDE'[i]}</b><span>${esc(o.t)}</span></button>`).join('');
@@ -413,6 +424,7 @@ function renderSoal() {
   }
   const el = document.getElementById('soal');
   el.innerHTML = h;
+  if (s.audio) renderAudio(s);
   el.scrollIntoView ? window.scrollTo(0, 0) : 0;
   document.getElementById('pos').textContent = `Soal ${c.idx + 1} dari ${c.soal.length}`;
   renderNav();
@@ -436,6 +448,54 @@ function setJawab(no, val) {
   if (val === '' || val == null) delete c.jawab[no]; else c.jawab[no] = val;
   c.ver++; simpanLokal(); renderNav(); tampilSimpan();
 }
+
+/* ---------- audio listening: putar tanpa bisa digeser, jumlah putar dibatasi ---------- */
+const AUD = { el: null, url: '', main: false, err: '' };
+const audKey = url => 'us_a_' + S.cur.jid + '_' + S.prof.no + '_' + url.replace(/[^a-z0-9]/gi, '').slice(-40);
+const audDipakai = url => parseInt(ls.get(audKey(url)) || '0', 10);
+function renderAudio(s) {
+  const box = document.getElementById('audiobox');
+  if (!box) return;
+  const url = mediaUrl(s.audio), maks = S.cur.audioMaks, pakai = audDipakai(url);
+  const sisa = maks > 0 ? Math.max(0, maks - pakai) : Infinity;
+  const sedang = AUD.main && AUD.url === url;
+  const dur = sedang && AUD.el && isFinite(AUD.el.duration) ? AUD.el.duration : 0;
+  const pos = sedang && AUD.el ? AUD.el.currentTime : 0;
+  box.innerHTML = `
+    <div class="aud-row">
+      <button class="btn ${sedang ? '' : 'primary'}" id="putar" ${sedang || !sisa ? 'disabled' : ''}>${sedang ? '🔊 Sedang diputar…' : sisa ? '▶ Putar audio' : '🔇 Batas putar habis'}</button>
+      <span class="hint">${maks > 0 ? `Bisa diputar ${maks}× · sisa ${sisa}×` : 'Bisa diputar berulang'}</span>
+    </div>
+    <div class="aud-bar"><div style="width:${dur ? Math.min(100, pos / dur * 100) : 0}%"></div></div>
+    <div class="hint">🎧 Gunakan earphone. Audio tidak bisa dijeda atau digeser.${AUD.err && AUD.url === url ? ' <b style="color:var(--merah)">' + esc(AUD.err) + '</b>' : ''}</div>`;
+  const b = document.getElementById('putar');
+  if (b) b.onclick = () => putarAudio(url);
+}
+function putarAudio(url) {
+  const maks = S.cur.audioMaks;
+  if (AUD.main || (maks > 0 && audDipakai(url) >= maks)) return;
+  if (!AUD.el) {
+    AUD.el = new Audio();
+    AUD.el.preload = 'none';
+    AUD.el.addEventListener('timeupdate', () => { if (S.cur) { const q = S.cur.soal[S.cur.idx]; if (q && q.audio && mediaUrl(q.audio) === AUD.url) { const bar = document.querySelector('.aud-bar div'); if (bar && isFinite(AUD.el.duration)) bar.style.width = Math.min(100, AUD.el.currentTime / AUD.el.duration * 100) + '%'; } } });
+    AUD.el.addEventListener('ended', () => { AUD.main = false; segarkanAudio(); });
+    AUD.el.addEventListener('error', () => {
+      if (AUD.main) { ls.set(audKey(AUD.url), String(Math.max(0, audDipakai(AUD.url) - 1))); } // gagal muat → jatah tidak berkurang
+      AUD.main = false; AUD.err = 'Audio gagal dimuat — lapor pengawas.'; segarkanAudio();
+    });
+  }
+  AUD.err = '';
+  AUD.url = url;
+  AUD.main = true;
+  ls.set(audKey(url), String(audDipakai(url) + 1));
+  AUD.el.src = url;
+  AUD.el.currentTime = 0;
+  const p = AUD.el.play();
+  if (p && p.catch) p.catch(() => { AUD.main = false; ls.set(audKey(url), String(Math.max(0, audDipakai(url) - 1))); AUD.err = 'Audio tidak bisa diputar — coba lagi.'; segarkanAudio(); });
+  segarkanAudio();
+}
+function segarkanAudio() { if (!S.cur) return; const q = S.cur.soal[S.cur.idx]; if (q && q.audio) renderAudio(q); }
+function hentikanAudio() { if (AUD.el) { try { AUD.el.pause(); } catch (e) { } } AUD.main = false; }
 
 /* ---------- waktu ---------- */
 function fmtSisa(ms) {
@@ -525,6 +585,7 @@ async function selesai(otomatis) {
   }
 }
 function renderSelesai(r) {
+  hentikanAudio();
   S.cur = null;
   $app.innerHTML = `
   <div class="wrap center"><div class="card done">
@@ -566,6 +627,7 @@ function langgar(jenis) {
 }
 function renderKunci(jenis) {
   tutupModal();
+  hentikanAudio();
   $app.innerHTML = `
   <div class="kunci"><div>
     <div class="ic">🔒</div>
