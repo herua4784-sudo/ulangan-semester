@@ -2366,6 +2366,15 @@ const IDEN_COLS = [
   ['TeleponOrtu', 'Telepon Orang Tua'], ['PekerjaanAyah', 'Pekerjaan Ayah'], ['PekerjaanIbu', 'Pekerjaan Ibu'], ['NamaWali', 'Nama Wali'], ['AlamatWali', 'Alamat Wali'],
   ['TeleponWali', 'Telepon Wali'], ['PekerjaanWali', 'Pekerjaan Wali']
 ];
+/** Tanggal identitas selalu tampil DD/MM/YYYY (data lama yyyy-mm-dd / dd-mm-yyyy ikut diubah saat tampil). */
+function tglDMY(v) {
+  const t = String(v ?? '').trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return m[3].padStart(2, '0') + '/' + m[2].padStart(2, '0') + '/' + m[1];
+  m = t.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);
+  if (m) return m[1].padStart(2, '0') + '/' + m[2].padStart(2, '0') + '/' + m[3];
+  return t;
+}
 function cariSiswa(list, nisn, nama) {
   const n = String(nisn || '').trim().replace(/^'/, '');
   return (n && list.find(s => String(s.NISN || '').trim() === n)) || list.find(s => normN(s.Nama) === normN(nama));
@@ -2931,7 +2940,7 @@ function downloadTemplateIdentitas(w) {
 }
 /** Baca identitas: template aplikasi ATAU sheet "DataSiswa" dari file rapor Excel lama sekolah. */
 function bacaIdentitas(wb) {
-  const tgl = v => typeof v === 'number' ? XLSX.SSF.format('dd-mm-yyyy', v) : String(v ?? '').trim();
+  const tgl = v => typeof v === 'number' ? XLSX.SSF.format('dd/mm/yyyy', v) : tglDMY(v);
   const lama = wb.SheetNames.find(n => n.toLowerCase() === 'datasiswa');
   if (lama) {
     const a = XLSX.utils.sheet_to_json(wb.Sheets[lama], { header: 1, defval: '', raw: false });
@@ -2989,14 +2998,14 @@ function WaliIdentitas({ w, reload }) {
           <table className="data">
             <thead><tr><th>No</th><th>Nama</th><th>NISN</th><th>Tempat, Tgl Lahir</th><th>Orang tua</th><th>Status</th><th></th></tr></thead>
             <tbody>{w.siswa.map((s, i) => { const d = s.Identitas || {}; return (
-              <tr key={s.Key}><td>{i + 1}</td><td>{s.Nama}</td><td>{s.NISN}</td><td>{[d.TempatLahir, d.TanggalLahir].filter(Boolean).join(', ')}</td><td>{[d.Ayah, d.Ibu].filter(Boolean).join(' / ')}</td>
+              <tr key={s.Key}><td>{i + 1}</td><td>{s.Nama}</td><td>{s.NISN}</td><td>{[d.TempatLahir, tglDMY(d.TanggalLahir)].filter(Boolean).join(', ')}</td><td>{[d.Ayah, d.Ibu].filter(Boolean).join(' / ')}</td>
                 <td>{s.Identitas ? <span className="badge b-hijau">✓</span> : <span className="badge b-abu">Belum</span>}</td>
                 <td>{s.Identitas && <button className="btn sm" onClick={() => setLihat(s)}>Lihat</button>}</td></tr>); })}</tbody>
           </table>
         </div>
       </div>
       {lihat && <Modal title={lihat.Nama} onClose={() => setLihat(null)}>
-        <table className="data"><tbody>{IDEN_COLS.slice(2).map(([k, l]) => <tr key={k}><td className="muted">{l}</td><td>{lihat.Identitas[k] || '–'}</td></tr>)}</tbody></table>
+        <table className="data"><tbody>{IDEN_COLS.slice(2).map(([k, l]) => <tr key={k}><td className="muted">{l}</td><td>{(/Tanggal/.test(k) ? tglDMY(lihat.Identitas[k]) : lihat.Identitas[k]) || '–'}</td></tr>)}</tbody></table>
       </Modal>}
     </>
   );
@@ -3114,12 +3123,12 @@ function RaporDiri({ c, s, foto }) {
   const d = s.Identitas || {}, k = c.sekolah;
   const v = x => x ? String(x) : '-';
   const jk = String(s.JK).toUpperCase() === 'P' ? 'Perempuan' : String(s.JK).toUpperCase() === 'L' ? 'Laki-laki' : v(s.JK);
-  const tl = /^\d{4}-\d{2}-\d{2}$/.test(d.TanggalLahir || '') ? fmtTanggal(d.TanggalLahir, false) : d.TanggalLahir;
+  const tl = tglDMY(d.TanggalLahir);
   const baris = [
     ['1.', 'Nama Siswa', <b>{s.Nama}</b>], ['2.', 'Nomor Induk / NISN', noInduk(s)], ['3.', 'Tempat dan Tanggal Lahir', [d.TempatLahir, tl].filter(Boolean).join(', ') || '-'],
     ['4.', 'Jenis Kelamin', jk], ['5.', 'Agama', v(d.Agama)], ['6.', 'Status dalam Keluarga', v(d.StatusKeluarga)], ['7.', 'Anak ke', v(d.AnakKe)],
     ['8.', 'Alamat Siswa', v(d.Alamat)], ['', 'Telepon', v(d.Telepon)], ['9.', 'Sekolah Asal', v(d.SekolahAsal)],
-    ['10.', 'Diterima di Sekolah ini', ''], ['', 'Di Kelas', v(d.DiterimaKelas)], ['', 'Pada Tanggal', v(d.DiterimaTanggal)],
+    ['10.', 'Diterima di Sekolah ini', ''], ['', 'Di Kelas', v(d.DiterimaKelas)], ['', 'Pada Tanggal', v(tglDMY(d.DiterimaTanggal))],
     ['11.', 'Nama Orang Tua', ''], ['', 'a. Ayah', v(d.Ayah)], ['', 'b. Ibu', v(d.Ibu)],
     ['12.', 'Alamat Orang Tua', v(d.AlamatOrtu)], ['', 'Telepon', v(d.TeleponOrtu)],
     ['13.', 'Pekerjaan Orang Tua', ''], ['', 'a. Ayah', v(d.PekerjaanAyah)], ['', 'b. Ibu', v(d.PekerjaanIbu)],
