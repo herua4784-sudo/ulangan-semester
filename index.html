@@ -2371,6 +2371,72 @@ function cariSiswa(list, nisn, nama) {
   return (n && list.find(s => String(s.NISN || '').trim() === n)) || list.find(s => normN(s.Nama) === normN(nama));
 }
 
+/** Ambil teks KD dari file rapor Excel lama (sheet per mapel: kolom DESKRIPSI berisi rumus IF predikat). */
+function bacaKDRaporLama(wb) {
+  const up = x => String(x).trim().toUpperCase();
+  const rapi = t => String(t || '').replace(/\s+/g, ' ').trim();
+  const awalan = /^(sangat\s+baik|cukup\s+baik|kurang\s+mampu|kurang\s+baik|kurang|baik|sangat\s+terampil|cukup\s+terampil|kurang\s+terampil|terampil|belum\s+dapat|perlu\s+bimbingan)(\s+dalam)?\s+/i;
+  const akhiranSama = arr => {
+    let s = arr[0];
+    arr.slice(1).forEach(x => { let i = 0; while (i < s.length && i < x.length && s[s.length - 1 - i] === x[x.length - 1 - i]) i++; s = s.slice(s.length - i); });
+    return s;
+  };
+  const kd = cell => {
+    if (!cell) return '';
+    const cab = cell.f ? [...String(cell.f).matchAll(/"([^"]*)"/g)].map(m => rapi(m[1])).filter(x => x.length > 3) : [];
+    if (cab.length >= 2) {
+      // 1) buang awalan predikat tiap cabang IF, ambil teks yang paling sering muncul
+      const bersih = cab.map(x => x.replace(awalan, '').replace(/^dalam\s+/i, ''));
+      const hit = {};
+      bersih.forEach(x => { hit[x] = (hit[x] || 0) + 1; });
+      const top = Object.keys(hit).sort((x, y) => hit[y] - hit[x])[0];
+      if (hit[top] >= 2) return top;
+      // 2) cadangan: akhiran yang sama di semua cabang
+      let t = akhiranSama(cab);
+      const c0 = cab[0], sebelum = c0.charAt(c0.length - t.length - 1);
+      if (!cab.includes(t) && sebelum && sebelum !== ' ') t = t.slice(Math.max(0, t.indexOf(' ')));
+      t = t.trim().replace(/^dalam\s+/i, '').replace(awalan, '');
+      if (t.length > 10) return t;
+    }
+    return rapi(cab[0] || cell.v).replace(awalan, '');
+  };
+  const hasil = [];
+  wb.SheetNames.forEach(n => {
+    const ws = wb.Sheets[n];
+    if (!ws['!ref']) return;
+    const R = XLSX.utils.decode_range(ws['!ref']);
+    const a = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: true, range: R });
+    const h = a.findIndex(r => r.filter(x => up(x) === 'DESKRIPSI').length >= 2 && r.some(x => /ANGKA\s*\(0/.test(up(x))));
+    if (h < 0) return;
+    const cols = a[h].map((x, i) => up(x) === 'DESKRIPSI' ? i : -1).filter(i => i >= 0);
+    let nama = '';
+    for (const r of a.slice(0, h)) { const i = r.findIndex(x => /^mata pelajaran$/i.test(String(x).trim())); if (i >= 0) { nama = r.slice(i + 1).map(x => String(x).replace(/^:\s*/, '').trim()).find(Boolean) || ''; break; } }
+    let P = '', K = '';
+    for (let r = h + 1; r < a.length && (!P || !K); r++) {
+      P = P || kd(ws[XLSX.utils.encode_cell({ r: r + R.s.r, c: cols[0] + R.s.c })]);
+      K = K || kd(ws[XLSX.utils.encode_cell({ r: r + R.s.r, c: cols[1] + R.s.c })]);
+    }
+    if (P || K) hasil.push({ sheet: n, nama: nama || n, P, K });
+  });
+  return hasil;
+}
+const SINONIM_MAPEL = [['agama', 'PAI'], ['ppkn', 'PPKN'], ['pancasila', 'PPKN'], ['b.ind', 'BIND'], ['indonesia', 'BIND'], ['b.ing', 'BING'], ['inggris', 'BING'], ['matematika', 'MTK'],
+  ['seni', 'SBD'], ['penjaskes', 'PJOK'], ['jasmani', 'PJOK'], ['pjok', 'PJOK'], ['prakarya', 'PKWU'], ['sejarah', 'SEJ'], ['geografi', 'GEO'], ['sosiologi', 'SOS'],
+  ['ekonomi', 'EKO'], ['fisika', 'FIS'], ['kimia', 'KIM'], ['biologi', 'BIO'], ['informatika', 'INF'], ['mulok', 'MULOK'], ['muatan lokal', 'MULOK']];
+/** Cocokkan sheet KD file lama dengan mapel aplikasi (nama persis → kata khas spt "arab"/"kutai" → sinonim kode). */
+function cocokMapelKD(x, mapel) {
+  const nm = normN(x.nama), sh = normN(x.sheet);
+  const persis = mapel.find(m => [m.Nama, m.NamaUlangan].some(n => normN(n) === nm));
+  if (persis) return persis.Kode;
+  const umum = /^(pendidikan|bahasa|dan|budi|pekerti|mata|pelajaran|kelas|tingkat|lanjut)$/;
+  const kata = (nm + ' ' + sh).split(/[^a-z]+/).filter(w => w.length >= 4 && !umum.test(w));
+  const khas = mapel.find(m => kata.some(w => ['arab', 'kutai', 'jepang', 'jerman', 'mandarin'].includes(w) && normN(m.Nama + ' ' + m.NamaUlangan).includes(w)));
+  if (khas) return khas.Kode;
+  const sn = SINONIM_MAPEL.find(([w]) => (nm + ' ' + sh).includes(w));
+  if (sn) { const m = mapel.find(m => String(m.Kode).toUpperCase().replace(/\d+$/, '') === sn[1]); if (m) return m.Kode; }
+  return '';
+}
+
 /* ---------- Guru: Nilai Rapor ---------- */
 function RaporNilaiPage({ user }) {
   const { notify } = useContext(Ctx);
@@ -2427,6 +2493,7 @@ function RaporNilaiDetail({ kode, onBack }) {
   const [kd, setKd] = useState({ P: '', K: '' });
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [kdFile, setKdFile] = useState(null);
   const terima = x => { setD(x); setRows(x.siswa.map(s => ({ ...s }))); setKd(x.kd); setDirty(false); };
   useEffect(() => { api('raporNilai', { kodeMapel: kode }, { fresh: true }).then(terima).catch(e => notify(e.message, 'err')); }, [kode]);
   if (!d) return <div className="card muted">Memuat…</div>;
@@ -2479,6 +2546,15 @@ function RaporNilaiDetail({ kode, onBack }) {
       notify(`${cocok} siswa terbaca dari Excel${tak.length ? ' · tidak cocok: ' + tak.slice(0, 3).join(', ') : ''}. Klik Simpan.`, tak.length ? 'err' : 'ok');
     } catch (e) { notify(e.message, 'err'); }
   };
+  const ambilKD = async f => {
+    try {
+      const daftar = bacaKDRaporLama(await readXlsx(f));
+      if (!daftar.length) throw new Error('Tidak ditemukan sheet nilai mapel (kolom DESKRIPSI) di file ini');
+      const cocok = daftar.find(x => cocokMapelKD(x, [m]) === m.Kode);
+      if (cocok) { setKd({ P: cocok.P, K: cocok.K }); setDirty(true); notify('KD diambil dari sheet "' + cocok.sheet + '". Periksa lalu Simpan.'); }
+      else setKdFile(daftar);
+    } catch (e) { notify(e.message, 'err'); }
+  };
   const lengkap = rows.filter(r => String(r.P).trim() !== '' && String(r.K).trim() !== '').length;
   const contohP = kd.P ? 'Baik dalam ' + kd.P : '', contohK = kd.K ? 'Terampil dalam ' + kd.K : '';
   return (
@@ -2495,7 +2571,17 @@ function RaporNilaiDetail({ kode, onBack }) {
         {ro && <div className="err" style={{ marginTop: 10 }}>🔒 Nilai rapor sudah dikunci admin — hanya bisa dilihat.</div>}
       </div>
       <div className="card">
-        <h3 style={{ marginTop: 0 }}>Teks KD untuk deskripsi</h3>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <h3 style={{ margin: 0 }}>Teks KD untuk deskripsi</h3>
+          {!ro && <FilePick label="📂 Ambil KD dari file rapor lama" onFile={ambilKD} />}
+        </div>
+        {kdFile && <Modal title="Pilih sheet mapel" onClose={() => setKdFile(null)}>
+          <p className="hint">Mapel "{m.Nama}" tidak ditemukan otomatis. Pilih sheet yang sesuai:</p>
+          {kdFile.map(x => <div key={x.sheet} className="row" style={{ justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', padding: '6px 0' }}>
+            <div><b>{x.sheet}</b> · {x.nama}<div className="hint">{x.P.slice(0, 90)}…</div></div>
+            <button className="btn sm primary" onClick={() => { setKd({ P: x.P, K: x.K }); setDirty(true); setKdFile(null); }}>Pakai</button>
+          </div>)}
+        </Modal>}
         <p className="hint">Tulis tanpa awalan predikat. Aplikasi menambahkan otomatis: <i>Kurang mampu / Cukup Baik / Baik / Sangat Baik dalam …</i> (pengetahuan) dan <i>Kurang Terampil / Cukup Terampil / Terampil / Sangat Terampil dalam …</i> (keterampilan).</p>
         <label>KD Pengetahuan<textarea rows={2} value={kd.P} disabled={ro} onChange={e => { setKd({ ...kd, P: e.target.value }); setDirty(true); }} placeholder="mis. Mendeskripsikan konsep dan menganalisis sifat operasi aljabar pada polinomial" /></label>
         {contohP && <div className="hint" style={{ marginTop: -6, marginBottom: 8 }}>Contoh di rapor (predikat B): <i>{contohP}</i></div>}
@@ -2575,6 +2661,7 @@ function RaporAdminPage({ go }) {
   const perKelas = {};
   (ml ? ml.mapel : []).forEach(m => { const k = perKelas[m.Tingkat] = perKelas[m.Tingkat] || { mapel: 0, lengkap: 0, kd: 0 }; k.mapel++; if (m.siswa && m.terisi >= m.siswa) k.lengkap++; if (m.kd) k.kd++; });
   return (
+    <>
     <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', alignItems: 'start' }}>
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Data rapor</h3>
@@ -2602,6 +2689,63 @@ function RaporAdminPage({ go }) {
           <span style={{ marginLeft: 10 }}>{info.kunci ? <span className="badge b-hijau">Terkunci</span> : <span className="badge b-abu">Terbuka</span>}</span>
         </div>
       </div>
+    </div>
+    <KDImport mapel={ml ? ml.mapel : []} onDone={load} />
+    </>
+  );
+}
+
+function KDImport({ mapel, onDone }) {
+  const { notify } = useContext(Ctx);
+  const [tk, setTk] = useState('11');
+  const [list, setList] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const mk = mapel.filter(m => m.Tingkat === tk);
+  const baca = async f => {
+    try {
+      const d = bacaKDRaporLama(await readXlsx(f));
+      if (!d.length) throw new Error('Tidak ditemukan sheet nilai mapel (kolom DESKRIPSI) di file ini');
+      setList(d.map(x => { const kode = cocokMapelKD(x, mk); return { ...x, kode, pakai: !!kode }; }));
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  const set = (i, k, v) => setList(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x));
+  const simpan = async () => {
+    const items = list.filter(x => x.pakai && x.kode).map(x => ({ kode: x.kode, P: x.P, K: x.K }));
+    const dobel = items.map(x => x.kode).filter((k, i, a) => a.indexOf(k) !== i);
+    if (dobel.length) return notify('Satu mapel dipilih dua kali: ' + dobel.join(', '), 'err');
+    if (!items.length) return notify('Belum ada baris yang dicentang', 'err');
+    setBusy(true);
+    try { const r = await api('raporSimpanKD', { items }); notify(r.tersimpan + ' KD mapel tersimpan'); setList(null); onDone && onDone(); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>Ambil KD dari file rapor lama</h3>
+      <p className="hint">Upload file rapor Excel sekolah (.xls/.xlsx). Teks KD diambil dari rumus deskripsi di tiap sheet mapel, lalu dicocokkan dengan mapel aplikasi. KD berlaku per kelas, jadi pilih kelas sesuai file.</p>
+      <div className="row">
+        <select value={tk} onChange={e => { setTk(e.target.value); setList(null); }} style={{ width: 120 }}><option value="10">Kelas X</option><option value="11">Kelas XI</option><option value="12">Kelas XII</option></select>
+        <FilePick label="📂 Pilih file rapor" onFile={baca} />
+      </div>
+      {list && <>
+        <div className="tablewrap" style={{ marginTop: 10, maxHeight: 420 }}>
+          <table className="data">
+            <thead><tr><th></th><th>Sheet di file</th><th>Mapel aplikasi</th><th>KD (pengetahuan / keterampilan)</th></tr></thead>
+            <tbody>{list.map((x, i) => (
+              <tr key={x.sheet}>
+                <td><input type="checkbox" style={{ width: 'auto' }} checked={x.pakai} onChange={e => set(i, 'pakai', e.target.checked)} /></td>
+                <td><b>{x.sheet}</b><div className="hint">{x.nama}</div></td>
+                <td style={{ minWidth: 180 }}><select value={x.kode} onChange={e => { set(i, 'kode', e.target.value); set(i, 'pakai', !!e.target.value); }}><option value="">— lewati —</option>{mk.map(m => <option key={m.Kode} value={m.Kode}>{m.Nama} ({m.Kode})</option>)}</select></td>
+                <td style={{ minWidth: 320 }}><textarea rows={2} value={x.P} onChange={e => set(i, 'P', e.target.value)} /><textarea rows={2} value={x.K} onChange={e => set(i, 'K', e.target.value)} style={{ marginTop: 4 }} /></td>
+              </tr>))}
+            </tbody>
+          </table>
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="btn primary" onClick={simpan} disabled={busy}>{busy ? 'Menyimpan…' : '💾 Simpan KD yang dicentang'}</button>
+          <span className="muted">{list.filter(x => x.pakai && x.kode).length} mapel · KD lama mapel itu akan diganti</span>
+        </div>
+      </>}
     </div>
   );
 }
