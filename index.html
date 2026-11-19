@@ -140,6 +140,40 @@
   .ba-catatan div{border-bottom:1px dotted #000;height:7.5mm;margin-left:6mm}
   .ba{font-size:10.5pt}
   table.ba-ttd td{height:13mm;vertical-align:top}
+  /* ---- Rapor K13 ---- */
+  .rapor-cetak .page{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;color:#000;box-sizing:border-box}
+  .rapor-cetak *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rp-kotak{border:1.5px solid #000;display:inline-block;padding:2mm 8mm;margin-top:2mm;font-weight:700;min-width:90mm}
+  table.rp-id td{padding:.9mm 0;vertical-align:top}
+  table.rp-diri{font-size:10pt;width:100%;border-collapse:collapse}
+  .rp-ttd-diri{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14mm;padding:0 6mm 0 22mm;font-size:10pt}
+  .rp-foto{width:30mm;height:40mm;border:1px solid #000;display:flex;align-items:center;justify-content:center;text-align:center;font-size:8pt;color:#555;overflow:hidden}
+  .rp-foto img{width:100%;height:100%;object-fit:cover}
+  table.rp-head{width:100%;font-size:9.5pt;margin-bottom:2mm;border-collapse:collapse}
+  table.rp-head td{padding:.6mm 1mm;vertical-align:top}
+  .rp-h{font-weight:700;font-size:10.5pt;margin:4mm 0 2mm}
+  .rp-sub{font-weight:700;margin:2mm 0 1mm 4mm}
+  table.rp-t{width:100%;border-collapse:collapse;font-size:8.5pt}
+  table.rp-t th,table.rp-t td{border:1px solid #000;padding:1mm 1.5mm;vertical-align:middle}
+  table.rp-t th{background:#e5e7eb;text-align:center;font-weight:700}
+  table.rp-t td.c{text-align:center}
+  .rp-pred{font-size:16pt;height:20mm}
+  .rp-sikap{font-family:'Times New Roman',serif;font-size:11pt;padding:3mm 8mm!important}
+  table.rp-nilai{table-layout:fixed}
+  .rp-desk{font-size:7.8pt;text-align:center;line-height:1.25}
+  .rp-p-angka{background:#fef3c7}.rp-k-angka{background:#ede9fe}
+  .rp-grup td{background:#f3f4f6;font-weight:700}
+  .rp-subgrup td{font-weight:700}
+  .rp-baris{break-inside:avoid}
+  table.rp-t .rp-nama-ulang td{border:0;text-align:right;font-style:italic;font-size:7.5pt;padding:0 0 1mm}
+  .rp-blok{break-inside:avoid}
+  .rp-naik{border:1px solid #000;padding:2mm;font-weight:700;text-align:center;margin-top:5mm}
+  .rp-catatan{border:1px solid #000;padding:2mm;min-height:10mm}
+  .rp-ttd{break-inside:avoid;margin-top:6mm;font-size:9.5pt}
+  .rp-ttd3{display:flex;justify-content:space-between;padding:0 20mm}
+  .rp-ttd3>div{width:75mm;text-align:center}
+  .rp-sp{height:18mm}
+  @media print{.tablewrap{max-height:none!important;overflow:visible!important;border:0!important}table.leger{font-size:8pt}table.leger th{position:static}}
   @page{size:A4;margin:8mm}
   @media print{
     body{background:#fff}
@@ -597,11 +631,11 @@ async function downloadTemplateGuru() {
   let mapel = [];
   try { mapel = (await api('getTable', { name: 'Mapel' })).rows; } catch (e) { }
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Kode', 'Nama', 'NIP', 'Mengampu'],
-    ['G01', 'Contoh: Nama Guru Matematika, S.Pd.', '198501012010011001', 'MTK10,MTK11,MTK12'],
-    ['G02', 'Contoh: Nama Guru B. Indonesia, S.Pd.', '', 'BIND10,BIND11,BIND12']
+    ['Kode', 'Nama', 'NIP', 'Mengampu', 'WaliKelas'],
+    ['G01', 'Contoh: Nama Guru Matematika, S.Pd.', '198501012010011001', 'MTK10,MTK11,MTK12', '10'],
+    ['G02', 'Contoh: Nama Guru B. Indonesia, S.Pd.', '', 'BIND10,BIND11,BIND12', '']
   ]);
-  ws['!cols'] = [{ wch: 8 }, { wch: 38 }, { wch: 22 }, { wch: 40 }];
+  ws['!cols'] = [{ wch: 8 }, { wch: 38 }, { wch: 22 }, { wch: 40 }, { wch: 10 }];
   const dm = XLSX.utils.aoa_to_sheet([['Kode', 'Nama Mapel', 'Kelas'], ...mapel.map(m => [m.Kode, m.Nama, m.Tingkat])]);
   dm['!cols'] = [{ wch: 10 }, { wch: 34 }, { wch: 7 }];
   const pt = XLSX.utils.aoa_to_sheet([
@@ -639,7 +673,7 @@ function GuruPage() {
   const importFile = async f => {
     try {
       const wb = await readXlsx(f);
-      const rows = sheetRows(wb, 'Guru', ['Kode', 'Nama', 'NIP', 'Mengampu']).filter(r => r.Kode || r.Nama);
+      const rows = sheetRows(wb, 'Guru', ['Kode', 'Nama', 'NIP', 'Mengampu', 'WaliKelas']).filter(r => r.Kode || r.Nama);
       if (!rows.length) throw new Error('Tidak ada data guru di sheet "Guru"');
       if (!confirm(`Import ${rows.length} guru?\n\nGuru dengan kode yang sudah ada akan diperbarui (password lama tetap). Guru baru dibuatkan password.`)) return;
       setBusy(true);
@@ -658,6 +692,7 @@ function GuruPage() {
   const cols = [
     { key: 'Kode', width: 80 }, { key: 'Nama', width: 220 }, { key: 'NIP', width: 160 },
     { key: 'Username', width: 120 }, { key: 'Aktif', options: ['Ya', 'Tidak'], width: 80, def: 'Ya' },
+    { key: 'WaliKelas', label: 'Wali Kelas', options: [{ value: '', label: '–' }, { value: '10', label: 'Kelas X' }, { value: '11', label: 'Kelas XI' }, { value: '12', label: 'Kelas XII' }], width: 100 },
     { key: 'SudahAdaPassword', label: 'Password', readOnly: true, render: r => r.SudahAdaPassword === 'Ya' ? <span className="badge b-hijau">Sudah</span> : <span className="badge b-abu">Belum</span> }
   ];
   return (
@@ -719,11 +754,14 @@ function MapelPage() {
   useEffect(() => { api('getTable', { name: 'Guru' }).then(d => setGuru(d.rows.map(g => ({ value: g.Kode, label: g.Kode + ' — ' + g.Nama })))).catch(() => { }); }, []);
   const cols = [
     { key: 'Kode', width: 90 }, { key: 'Nama', width: 240 }, { key: 'Tingkat', options: ['10', '11', '12'], width: 70 },
-    { key: 'KodeGuru', label: 'Guru Pengampu', options: guru, width: 220 }, { key: 'Urut', width: 60 }
+    { key: 'KodeGuru', label: 'Guru Pengampu', options: guru, width: 220 }, { key: 'Urut', width: 60 },
+    { key: 'Rapor', label: 'Masuk rapor', options: ['Ya', 'Tidak'], width: 80, def: 'Ya' },
+    { key: 'Kelompok', label: 'Kelompok rapor', options: [{ value: '', label: '(otomatis)' }, { value: 'A', label: 'A (Umum)' }, { value: 'B', label: 'B (Umum)' }, { value: 'C', label: 'C (Peminatan)' }, { value: 'Pilihan', label: 'Pilihan' }], width: 130 },
+    { key: 'NamaRapor', label: 'Nama di rapor (kosong = nama mapel)', width: 260 }, { key: 'KKM', label: 'KBM', width: 60 }
   ];
   return (
     <>
-      <div className="card hint">Satu baris = satu paket soal (mapel × tingkat). Kode harus unik, mis. MTK10, MTK11. Guru hanya bisa upload soal untuk mapel yang dia ampu.</div>
+      <div className="card hint">Satu baris = satu paket soal (mapel × tingkat). Kode harus unik, mis. MTK10, MTK11. Guru hanya bisa upload soal untuk mapel yang dia ampu.<br /><b>Rapor K13:</b> Kelompok (otomatis: PAI, PPKn, B.Ind, MTK, B.Ing = A · Seni Budaya, PJOK, Prakarya = B · Geografi, Sejarah, Sosiologi, Ekonomi = C · lainnya = Pilihan), nama mapel di rapor, dan KBM (kosong = KBM bawaan). Mapel yang tidak dicetak di rapor: isi "Tidak".</div>
       <TableEditor name="Mapel" columns={cols} />
     </>
   );
@@ -2311,6 +2349,693 @@ function UjiServerPage() {
   );
 }
 
+/* ================================================================
+   RAPOR K13 — format rapor SMA Gotong Royong
+   Guru mapel  : nilai pengetahuan, keterampilan, sikap + teks KD
+   Wali kelas  : ekskul, absen, kenaikan, identitas, leger, cetak rapor
+================================================================ */
+const KELOMPOK_LABEL = { A: 'KELOMPOK A (UMUM)', B: 'KELOMPOK B (UMUM)', C: 'KELOMPOK C (PEMINATAN AKADEMIK)', PILIHAN: 'MATA PELAJARAN PILIHAN' };
+const predOf = (v, b = [55, 70, 85]) => { const n = parseFloat(String(v ?? '').replace(',', '.')); if (String(v ?? '').trim() === '' || isNaN(n)) return ''; return n <= b[0] ? 'D' : n <= b[1] ? 'C' : n <= b[2] ? 'B' : 'A'; };
+const predSikapOf = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); if (!n) return ''; return n <= 1 ? 'D' : n <= 2 ? 'C' : n <= 3 ? 'B' : 'A'; };
+const fmtR = v => v == null || v === '' ? '' : String(Math.round(Number(v) * 100) / 100).replace('.', ',');
+const normN = x => String(x || '').toLowerCase().replace(/\s+/g, ' ').trim();
+const IDEN_COLS = [
+  ['NISN', 'NISN'], ['Nama', 'Nama'], ['NIS', 'NIS'], ['TempatLahir', 'Tempat Lahir'], ['TanggalLahir', 'Tanggal Lahir'], ['Agama', 'Agama'],
+  ['StatusKeluarga', 'Status dalam Keluarga'], ['AnakKe', 'Anak Ke'], ['Alamat', 'Alamat Siswa'], ['Telepon', 'Telepon Siswa'], ['SekolahAsal', 'Sekolah Asal'],
+  ['DiterimaKelas', 'Diterima di Kelas'], ['DiterimaTanggal', 'Diterima Tanggal'], ['Ayah', 'Nama Ayah'], ['Ibu', 'Nama Ibu'], ['AlamatOrtu', 'Alamat Orang Tua'],
+  ['TeleponOrtu', 'Telepon Orang Tua'], ['PekerjaanAyah', 'Pekerjaan Ayah'], ['PekerjaanIbu', 'Pekerjaan Ibu'], ['NamaWali', 'Nama Wali'], ['AlamatWali', 'Alamat Wali'],
+  ['TeleponWali', 'Telepon Wali'], ['PekerjaanWali', 'Pekerjaan Wali']
+];
+function cariSiswa(list, nisn, nama) {
+  const n = String(nisn || '').trim().replace(/^'/, '');
+  return (n && list.find(s => String(s.NISN || '').trim() === n)) || list.find(s => normN(s.Nama) === normN(nama));
+}
+
+/* ---------- Guru: Nilai Rapor ---------- */
+function RaporNilaiPage({ user }) {
+  const { notify } = useContext(Ctx);
+  const [d, setD] = useState(null);
+  const [buka, setBuka] = useState(null);
+  const [fT, setFT] = useState('');
+  const load = () => api('raporMapelList', {}, { fresh: true }).then(setD).catch(e => notify(e.message, 'err'));
+  useEffect(() => { load(); }, []);
+  if (buka) return <RaporNilaiDetail kode={buka} onBack={() => { setBuka(null); load(); }} />;
+  if (!d) return <div className="card muted">Memuat…</div>;
+  const shown = d.mapel.filter(m => !fT || m.Tingkat === fT);
+  const isAdmin = user.peran === 'admin';
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            <select value={fT} onChange={e => setFT(e.target.value)} style={{ width: 140 }}><option value="">Semua kelas</option><option value="10">Kelas 10</option><option value="11">Kelas 11</option><option value="12">Kelas 12</option></select>
+            <span className="muted">{shown.length} mapel</span>
+          </div>
+          {d.kunci && <span className="badge b-hijau">🔒 Nilai rapor sudah dikunci admin</span>}
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Isi <b>angka pengetahuan & keterampilan (0–100)</b>, <b>sikap spiritual & sosial (1–4)</b>, dan <b>teks KD</b> untuk deskripsi. Predikat & deskripsi dibuat otomatis seperti rumus file rapor sekolah (≤55 D · ≤70 C · ≤85 B · di atas 85 A). Nilai ulangan semester dari aplikasi bisa dipakai sebagai bahan.</p>
+      </div>
+      {!d.mapel.length && <div className="card">{isAdmin ? 'Belum ada mapel rapor.' : 'Belum ada mapel yang Anda ampu. Hubungi admin.'}</div>}
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0 }}>
+          <table className="data">
+            <thead><tr><th>Mapel (nama di rapor)</th><th>Kls</th><th>Kelompok</th>{isAdmin && <th>Guru</th>}<th>KBM</th><th>Nilai terisi</th><th>Teks KD</th><th></th></tr></thead>
+            <tbody>
+              {shown.map(m => (
+                <tr key={m.Kode}>
+                  <td><b>{m.Nama}</b><div className="hint">{m.Kode}</div></td>
+                  <td>{m.Tingkat}</td><td>{m.Kelompok === 'PILIHAN' ? 'Pilihan' : m.Kelompok}</td>
+                  {isAdmin && <td>{m.NamaGuru || '–'}</td>}
+                  <td>{m.KKM}</td>
+                  <td>{m.terisi >= m.siswa && m.siswa ? <span className="badge b-hijau">✓ {m.terisi}/{m.siswa}</span> : <span className="badge b-kuning">{m.terisi}/{m.siswa}</span>}</td>
+                  <td>{m.kd ? <span className="badge b-hijau">✓</span> : <span className="badge b-merah">Belum</span>}</td>
+                  <td><button className="btn sm primary" onClick={() => setBuka(m.Kode)}>Isi nilai →</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function RaporNilaiDetail({ kode, onBack }) {
+  const { notify } = useContext(Ctx);
+  const [d, setD] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [kd, setKd] = useState({ P: '', K: '' });
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const terima = x => { setD(x); setRows(x.siswa.map(s => ({ ...s }))); setKd(x.kd); setDirty(false); };
+  useEffect(() => { api('raporNilai', { kodeMapel: kode }, { fresh: true }).then(terima).catch(e => notify(e.message, 'err')); }, [kode]);
+  if (!d) return <div className="card muted">Memuat…</div>;
+  const m = d.mapel, b = d.batas, ro = d.kunci;
+  const set = (i, f, v) => { setRows(r => r.map((x, j) => j === i ? { ...x, [f]: v } : x)); setDirty(true); };
+  const isiSemua = (f, v, hanyaKosong = true) => { setRows(r => r.map(x => (!hanyaKosong || String(x[f]).trim() === '') ? { ...x, [f]: v } : x)); setDirty(true); };
+  const dariUlangan = () => {
+    let n = 0;
+    setRows(r => r.map(x => { if (String(x.P).trim() === '' && x.PAS) { n++; return { ...x, P: String(Math.round(x.PAS.nilai)) }; } return x; }));
+    setDirty(true);
+    setTimeout(() => notify(n ? `${n} nilai pengetahuan diisi dari nilai ulangan (dibulatkan). Periksa & sesuaikan bila perlu.` : 'Tidak ada nilai ulangan untuk kolom yang masih kosong'), 0);
+  };
+  const simpan = async () => {
+    setBusy(true);
+    try { terima(await api('raporSimpanNilai', { kodeMapel: kode, rows: rows.map(r => ({ Key: r.Key, P: r.P, K: r.K, SS: r.SS, SO: r.SO })), kd })); notify('Nilai rapor tersimpan'); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  const unduh = () => {
+    const aoa = [['No', 'NISN', 'Nama', 'Pengetahuan', 'Keterampilan', 'Sikap Spiritual', 'Sikap Sosial', 'Nilai Ulangan (info)'],
+      ...rows.map((r, i) => [i + 1, r.NISN, r.Nama, r.P, r.K, r.SS, r.SO, r.PAS ? r.PAS.nilai : ''])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 4 }, { wch: 13 }, { wch: 32 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 18 }];
+    const kdws = XLSX.utils.aoa_to_sheet([['Jenis', 'Teks KD (tanpa awalan predikat)'], ['Pengetahuan', kd.P], ['Keterampilan', kd.K], [], ['Petunjuk: Pengetahuan & Keterampilan 0–100, sikap 1–4. Jangan ubah kolom NISN & Nama.']]);
+    kdws['!cols'] = [{ wch: 14 }, { wch: 110 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Nilai'); XLSX.utils.book_append_sheet(wb, kdws, 'KD');
+    XLSX.writeFile(wb, 'Nilai_Rapor_' + kode + '.xlsx');
+  };
+  const upload = async f => {
+    try {
+      const wb = await readXlsx(f);
+      const data = sheetRows(wb, 'Nilai', ['NISN', 'Nama', 'Pengetahuan', 'Keterampilan', 'Sikap Spiritual', 'Sikap Sosial']);
+      let cocok = 0; const tak = [];
+      const baru = rows.map(r => ({ ...r }));
+      data.forEach(x => {
+        const s = cariSiswa(baru, x.NISN, x.Nama);
+        if (!s) { if (x.Nama) tak.push(x.Nama); return; }
+        cocok++;
+        if (x.Pengetahuan !== undefined) s.P = x.Pengetahuan; if (x.Keterampilan !== undefined) s.K = x.Keterampilan;
+        if (x['Sikap Spiritual'] !== undefined) s.SS = x['Sikap Spiritual']; if (x['Sikap Sosial'] !== undefined) s.SO = x['Sikap Sosial'];
+      });
+      const kdName = wb.SheetNames.find(n => n.toLowerCase() === 'kd');
+      if (kdName) {
+        const a = XLSX.utils.sheet_to_json(wb.Sheets[kdName], { header: 1, defval: '' });
+        const g = j => (a.find(r => normN(r[0]) === j) || [])[1];
+        if (g('pengetahuan')) setKd(k => ({ ...k, P: String(g('pengetahuan')) }));
+        if (g('keterampilan')) setKd(k => ({ ...k, K: String(g('keterampilan')) }));
+      }
+      setRows(baru); setDirty(true);
+      notify(`${cocok} siswa terbaca dari Excel${tak.length ? ' · tidak cocok: ' + tak.slice(0, 3).join(', ') : ''}. Klik Simpan.`, tak.length ? 'err' : 'ok');
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  const lengkap = rows.filter(r => String(r.P).trim() !== '' && String(r.K).trim() !== '').length;
+  const contohP = kd.P ? 'Baik dalam ' + kd.P : '', contohK = kd.K ? 'Terampil dalam ' + kd.K : '';
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div><button className="btn sm" onClick={() => { if (!dirty || confirm('Perubahan belum disimpan. Tetap kembali?')) onBack(); }}>← Kembali</button> <b style={{ marginLeft: 8 }}>{m.Nama}</b> <span className="muted">· Kelas {m.Tingkat} · KBM {m.KKM}</span></div>
+          <div className="row">
+            <button className="btn" onClick={unduh}>⬇ Excel</button>
+            {!ro && <FilePick label="⬆ Upload Excel" onFile={upload} />}
+            {!ro && <button className="btn primary" onClick={simpan} disabled={busy}>{busy ? 'Menyimpan…' : '💾 Simpan'}{dirty ? ' *' : ''}</button>}
+          </div>
+        </div>
+        {ro && <div className="err" style={{ marginTop: 10 }}>🔒 Nilai rapor sudah dikunci admin — hanya bisa dilihat.</div>}
+      </div>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Teks KD untuk deskripsi</h3>
+        <p className="hint">Tulis tanpa awalan predikat. Aplikasi menambahkan otomatis: <i>Kurang mampu / Cukup Baik / Baik / Sangat Baik dalam …</i> (pengetahuan) dan <i>Kurang Terampil / Cukup Terampil / Terampil / Sangat Terampil dalam …</i> (keterampilan).</p>
+        <label>KD Pengetahuan<textarea rows={2} value={kd.P} disabled={ro} onChange={e => { setKd({ ...kd, P: e.target.value }); setDirty(true); }} placeholder="mis. Mendeskripsikan konsep dan menganalisis sifat operasi aljabar pada polinomial" /></label>
+        {contohP && <div className="hint" style={{ marginTop: -6, marginBottom: 8 }}>Contoh di rapor (predikat B): <i>{contohP}</i></div>}
+        <label>KD Keterampilan<textarea rows={2} value={kd.K} disabled={ro} onChange={e => { setKd({ ...kd, K: e.target.value }); setDirty(true); }} placeholder="mis. Memecahkan masalah nyata menggunakan konsep teorema sisa dan faktorisasi" /></label>
+        {contohK && <div className="hint" style={{ marginTop: -6 }}>Contoh di rapor (predikat B): <i>{contohK}</i></div>}
+      </div>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="muted">Terisi lengkap <b>{lengkap}</b> dari {rows.length} siswa</span>
+          {!ro && <div className="row" style={{ gap: 6 }}>
+            <button className="btn sm" onClick={dariUlangan} title="Hanya mengisi kolom Pengetahuan yang masih kosong">↙ Isi Pengetahuan kosong dari nilai ulangan</button>
+            <button className="btn sm" onClick={() => { isiSemua('SS', '3'); isiSemua('SO', '3'); }}>Sikap kosong = 3</button>
+            <button className="btn sm" onClick={() => { isiSemua('SS', '4'); isiSemua('SO', '4'); }}>Sikap kosong = 4</button>
+          </div>}
+        </div>
+      </div>
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0, maxHeight: '70vh' }}>
+          <table className="data">
+            <thead><tr><th>No</th><th>Nama</th><th title="Nilai ulangan semester dari aplikasi">Ulangan</th><th>Pengetahuan</th><th>Pred</th><th>Keterampilan</th><th>Pred</th><th>Spiritual (1–4)</th><th>Sosial (1–4)</th></tr></thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const pp = predOf(r.P, b), pk = predOf(r.K, b);
+                const bawah = v => v !== '' && parseFloat(String(v).replace(',', '.')) < m.KKM;
+                return (
+                  <tr key={r.Key}>
+                    <td>{i + 1}</td>
+                    <td style={{ minWidth: 200 }}>{r.Nama}<div className="hint">{r.NISN}</div></td>
+                    <td className="muted">{r.PAS ? fmtR(r.PAS.nilai) + (r.PAS.lengkap ? '' : '*') : '–'}</td>
+                    <td style={{ width: 90 }}><input inputMode="decimal" value={r.P} disabled={ro} onChange={e => set(i, 'P', e.target.value)} style={bawah(r.P) ? { borderColor: '#dc2626', color: '#dc2626' } : null} /></td>
+                    <td><b>{pp}</b></td>
+                    <td style={{ width: 90 }}><input inputMode="decimal" value={r.K} disabled={ro} onChange={e => set(i, 'K', e.target.value)} style={bawah(r.K) ? { borderColor: '#dc2626', color: '#dc2626' } : null} /></td>
+                    <td><b>{pk}</b></td>
+                    <td style={{ width: 90 }}><select value={r.SS} disabled={ro} onChange={e => set(i, 'SS', e.target.value)}><option value=""></option>{['4', '3', '2', '1'].map(x => <option key={x} value={x}>{x} ({predSikapOf(x)})</option>)}</select></td>
+                    <td style={{ width: 90 }}><select value={r.SO} disabled={ro} onChange={e => set(i, 'SO', e.target.value)}><option value=""></option>{['4', '3', '2', '1'].map(x => <option key={x} value={x}>{x} ({predSikapOf(x)})</option>)}</select></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div className="card hint">Angka merah = di bawah KBM ({m.KKM}). Kolom "Ulangan" = nilai ulangan semester dari aplikasi (* = uraian belum dikoreksi) — hanya bahan, tidak otomatis masuk rapor. Sikap rapor = rata-rata sikap dari semua guru mapel (≤1 D · ≤2 C · ≤3 B · ≤4 A).</div>
+    </>
+  );
+}
+
+/* ---------- Admin: Pengaturan Rapor ---------- */
+const RAPOR_FIELDS = [
+  ['tahun_pelajaran', 'Tahun pelajaran'], ['semester', 'Semester (Ganjil / Genap)'], ['tgl_rapor', 'Tanggal rapor', 'date'],
+  ['kepala_sekolah', 'Nama kepala sekolah'], ['nip_kepsek', 'NIP kepala sekolah'],
+  ['kabupaten', 'Kabupaten (baris ke-2 alamat)'], ['nss', 'NSS'], ['npsn', 'NPSN'],
+  ['rapor_kkm', 'KBM bawaan (jika kolom KKM di Mapel kosong)'], ['rapor_predikat', 'Batas predikat D,C,B (mis. 55,70,85)'],
+  ['rapor_peminatan', 'Sub-judul Kelompok C (mis. Peminatan Sosial)'], ['rapor_ekskul', 'Daftar ekstrakurikuler (pisahkan koma)'],
+  ['rapor_kertas', 'Kertas cetak rapor', ['F4', 'A4']]
+];
+function RaporAdminPage({ go }) {
+  const { notify } = useContext(Ctx);
+  const [s, setS] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [ml, setMl] = useState(null);
+  const load = () => {
+    api('getSettings', {}, { fresh: true }).then(setS).catch(e => notify(e.message, 'err'));
+    api('raporInfo', {}, { fresh: true }).then(setInfo).catch(() => { });
+    api('raporMapelList', {}, { fresh: true }).then(setMl).catch(() => { });
+  };
+  useEffect(load, []);
+  if (!s || !info) return <div className="card muted">Memuat…</div>;
+  const save = async () => {
+    try { const o = {}; RAPOR_FIELDS.forEach(([k]) => { o[k] = s[k] || ''; }); setS(await api('saveSettings', { settings: o })); notify('Pengaturan rapor tersimpan'); }
+    catch (e) { notify(e.message, 'err'); }
+  };
+  const kunci = async v => {
+    if (!confirm(v ? 'Kunci semua nilai rapor? Guru & wali kelas tidak bisa mengubah lagi (cetak tetap bisa).' : 'Buka kunci nilai rapor?')) return;
+    try { await api('raporKunci', { kunci: v }); load(); notify(v ? 'Nilai rapor dikunci' : 'Kunci dibuka'); } catch (e) { notify(e.message, 'err'); }
+  };
+  const perKelas = {};
+  (ml ? ml.mapel : []).forEach(m => { const k = perKelas[m.Tingkat] = perKelas[m.Tingkat] || { mapel: 0, lengkap: 0, kd: 0 }; k.mapel++; if (m.siswa && m.terisi >= m.siswa) k.lengkap++; if (m.kd) k.kd++; });
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', alignItems: 'start' }}>
+      <div className="card">
+        <h3 style={{ marginTop: 0 }}>Data rapor</h3>
+        {RAPOR_FIELDS.map(([k, l, t]) => <label key={k}>{l}{Array.isArray(t)
+          ? <select value={s[k] || t[0]} onChange={e => setS({ ...s, [k]: e.target.value })}>{t.map(x => <option key={x}>{x}</option>)}</select>
+          : <input type={t || 'text'} value={s[k] || ''} onChange={e => setS({ ...s, [k]: e.target.value })} />}</label>)}
+        <button className="btn primary" onClick={save}>💾 Simpan</button>
+      </div>
+      <div>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Kelengkapan per kelas</h3>
+          <table className="data">
+            <thead><tr><th>Kelas</th><th>Wali kelas</th><th>Mapel lengkap</th><th>KD lengkap</th></tr></thead>
+            <tbody>{['10', '11', '12'].map(t => { const k = perKelas[t] || { mapel: 0, lengkap: 0, kd: 0 }; return (
+              <tr key={t}><td><b>{ROMAWI[t]}</b></td><td>{info.waliKelas[t] || <span className="badge b-merah">Belum diatur</span>}</td>
+                <td>{k.lengkap === k.mapel && k.mapel ? <span className="badge b-hijau">✓ {k.lengkap}/{k.mapel}</span> : <span className="badge b-kuning">{k.lengkap}/{k.mapel}</span>}</td>
+                <td>{k.kd}/{k.mapel}</td></tr>); })}</tbody>
+          </table>
+          <p className="hint">Wali kelas diatur di menu <a href="#" onClick={e => { e.preventDefault(); go('guru'); }}>Guru</a> (kolom Wali Kelas). Kelompok, nama mapel di rapor & KBM diatur di menu <a href="#" onClick={e => { e.preventDefault(); go('mapel'); }}>Mapel</a>.</p>
+        </div>
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Kunci nilai rapor</h3>
+          <p className="hint">Setelah semua nilai diperiksa, kunci agar tidak berubah saat dicetak. Wali kelas tetap bisa mencetak.</p>
+          {info.kunci ? <button className="btn" onClick={() => kunci(false)}>🔓 Buka kunci</button> : <button className="btn primary" onClick={() => kunci(true)}>🔒 Kunci semua nilai rapor</button>}
+          <span style={{ marginLeft: 10 }}>{info.kunci ? <span className="badge b-hijau">Terkunci</span> : <span className="badge b-abu">Terbuka</span>}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Wali kelas ---------- */
+function RaporWaliPage({ user }) {
+  const { notify } = useContext(Ctx);
+  const isAdmin = user.peran === 'admin';
+  const [kelas, setKelas] = useState(isAdmin ? '' : user.wali || '');
+  const [tab, setTab] = useState('wali');
+  const [w, setW] = useState(null);
+  const [c, setC] = useState(null);
+  const load = k => {
+    setW(null); setC(null);
+    if (!k) return;
+    api('raporWali', { kelas: k }, { fresh: true }).then(setW).catch(e => notify(e.message, 'err'));
+    api('raporCetak', { kelas: k }, { fresh: true }).then(setC).catch(e => notify(e.message, 'err'));
+  };
+  useEffect(() => { load(kelas); }, [kelas]);
+  if (!isAdmin && !user.wali) return <div className="card">Anda belum ditetapkan sebagai wali kelas. Hubungi admin (menu Guru → kolom Wali Kelas), lalu keluar & masuk lagi.</div>;
+  const reloadCetak = () => api('raporCetak', { kelas }, { fresh: true }).then(setC).catch(e => notify(e.message, 'err'));
+  const kosong = c ? c.siswa.reduce((a, s) => a + s.kosong.length, 0) : 0;
+  const mapelKosong = c ? c.mapel.filter(m => c.siswa.some(s => s.kosong.includes(m.Kode))) : [];
+  return (
+    <>
+      <div className="card no-print">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row">
+            {isAdmin ? <select value={kelas} onChange={e => setKelas(e.target.value)} style={{ width: 160 }}><option value="">— pilih kelas —</option><option value="10">Kelas X</option><option value="11">Kelas XI</option><option value="12">Kelas XII</option></select>
+              : <b>Wali Kelas {ROMAWI[kelas] || kelas}</b>}
+            {c && <span className="muted">{c.siswa.length} siswa · Semester {c.semesterTeks} · {c.sekolah.tahun}</span>}
+          </div>
+          {w && w.kunci && <span className="badge b-hijau">🔒 Dikunci admin</span>}
+        </div>
+        {kelas && <div className="row" style={{ marginTop: 12, gap: 6 }}>
+          {[['wali', '🏅 Ekskul, Absen & Kenaikan'], ['iden', '🪪 Identitas Siswa'], ['leger', '📋 Leger & Ranking'], ['cetak', '🖨 Cetak Rapor']].map(([k, l]) =>
+            <button key={k} className={'btn ' + (tab === k ? 'primary' : '')} onClick={() => { setTab(k); if (k === 'leger' || k === 'cetak') reloadCetak(); }}>{l}</button>)}
+        </div>}
+        {c && mapelKosong.length > 0 && <div className="hint" style={{ marginTop: 10, color: '#b45309' }}>⚠ {kosong} nilai belum diisi guru: {mapelKosong.map(m => m.Nama).join(', ')}. Rapor tetap bisa dicetak, kolomnya kosong.</div>}
+      </div>
+      {!kelas && <div className="card muted">Pilih kelas.</div>}
+      {kelas && tab === 'wali' && (w ? <WaliIsian w={w} onSaved={x => { setW(x); }} /> : <div className="card muted">Memuat…</div>)}
+      {kelas && tab === 'iden' && (w ? <WaliIdentitas w={w} reload={() => load(kelas)} /> : <div className="card muted">Memuat…</div>)}
+      {kelas && tab === 'leger' && (c ? <Leger c={c} /> : <div className="card muted">Memuat…</div>)}
+      {kelas && tab === 'cetak' && (c ? <CetakRapor c={c} /> : <div className="card muted">Memuat…</div>)}
+    </>
+  );
+}
+
+function WaliIsian({ w, onSaved }) {
+  const { notify } = useContext(Ctx);
+  const [rows, setRows] = useState(() => w.siswa.map(s => ({ ...s, Ekskul: [0, 1, 2].map(i => ({ n: '', v: '', k: '', ...(s.Ekskul[i] || {}) })) })));
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [massal, setMassal] = useState({ slot: 0, n: w.ekskul[0] || '', v: '' });
+  const ro = w.kunci;
+  const genap = /genap|ii/i.test(w.semester || '');
+  const opsiNaik = w.kelas === '12' ? ['', 'Lulus', 'Tidak Lulus'] : ['', 'Naik', 'Tidak Naik'];
+  const set = (i, f, v) => { setRows(r => r.map((x, j) => j === i ? { ...x, [f]: v } : x)); setDirty(true); };
+  const setE = (i, slot, f, v) => { setRows(r => r.map((x, j) => j === i ? { ...x, Ekskul: x.Ekskul.map((e, k) => k === slot ? { ...e, [f]: v } : e) } : x)); setDirty(true); };
+  const simpan = async () => {
+    setBusy(true);
+    try { onSaved(await api('raporSimpanWali', { kelas: w.kelas, rows: rows.map(r => ({ Key: r.Key, Ekskul: r.Ekskul.filter(e => e.n), Sakit: r.Sakit, Izin: r.Izin, Alpa: r.Alpa, Kenaikan: r.Kenaikan, Catatan: r.Catatan, DeskSpiritual: r.DeskSpiritual, DeskSosial: r.DeskSosial })) })); setDirty(false); notify('Data wali kelas tersimpan'); }
+    catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  const terapkanMassal = () => {
+    if (!massal.n) return notify('Pilih ekskul', 'err');
+    setRows(r => r.map(x => ({ ...x, Ekskul: x.Ekskul.map((e, k) => k === Number(massal.slot) ? { ...e, n: massal.n, v: massal.v !== '' ? massal.v : e.v } : e) })));
+    setDirty(true);
+  };
+  const unduh = () => {
+    const aoa = [['No', 'NISN', 'Nama', 'Sakit', 'Izin', 'Alpa', 'Ekskul 1', 'Nilai 1', 'Ekskul 2', 'Nilai 2', 'Ekskul 3', 'Nilai 3', 'Kenaikan'],
+      ...rows.map((r, i) => [i + 1, r.NISN, r.Nama, r.Sakit, r.Izin, r.Alpa, ...r.Ekskul.flatMap(e => [e.n, e.v]), r.Kenaikan])];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 4 }, { wch: 13 }, { wch: 30 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 28 }, { wch: 7 }, { wch: 28 }, { wch: 7 }, { wch: 22 }, { wch: 7 }, { wch: 11 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Wali');
+    XLSX.writeFile(wb, 'Ekskul_Absen_Kelas_' + (ROMAWI[w.kelas] || w.kelas) + '.xlsx');
+  };
+  const upload = async f => {
+    try {
+      const wb = await readXlsx(f);
+      const keys = ['NISN', 'Nama', 'Sakit', 'Izin', 'Alpa', 'Ekskul 1', 'Nilai 1', 'Ekskul 2', 'Nilai 2', 'Ekskul 3', 'Nilai 3', 'Kenaikan'];
+      const data = sheetRows(wb, 'Wali', keys);
+      const baru = rows.map(r => ({ ...r, Ekskul: r.Ekskul.map(e => ({ ...e })) }));
+      let cocok = 0;
+      data.forEach(x => {
+        const s = cariSiswa(baru, x.NISN, x.Nama); if (!s) return; cocok++;
+        ['Sakit', 'Izin', 'Alpa', 'Kenaikan'].forEach(k => { if (x[k] !== undefined) s[k] = x[k]; });
+        [0, 1, 2].forEach(i => { if (x['Ekskul ' + (i + 1)] !== undefined) s.Ekskul[i] = { ...s.Ekskul[i], n: x['Ekskul ' + (i + 1)], v: x['Nilai ' + (i + 1)] || '' }; });
+      });
+      setRows(baru); setDirty(true); notify(cocok + ' siswa terbaca. Klik Simpan.');
+    } catch (e) { notify(e.message, 'err'); }
+  };
+  const ekOpts = n => Array.from(new Set(['', ...w.ekskul, n].filter(x => x !== undefined)));
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="row" style={{ gap: 6 }}>
+            <span className="muted">Isi semua siswa:</span>
+            <select value={massal.slot} onChange={e => setMassal({ ...massal, slot: e.target.value })} style={{ width: 100 }}><option value={0}>Ekskul 1</option><option value={1}>Ekskul 2</option><option value={2}>Ekskul 3</option></select>
+            <select value={massal.n} onChange={e => setMassal({ ...massal, n: e.target.value })} style={{ width: 230 }}>{ekOpts('').map(x => <option key={x} value={x}>{x || '— ekskul —'}</option>)}</select>
+            <input value={massal.v} onChange={e => setMassal({ ...massal, v: e.target.value })} placeholder="nilai" style={{ width: 70 }} />
+            <button className="btn sm" onClick={terapkanMassal} disabled={ro}>Terapkan</button>
+            {genap && <button className="btn sm" disabled={ro} onClick={() => { setRows(r => r.map(x => x.Kenaikan ? x : { ...x, Kenaikan: opsiNaik[1] })); setDirty(true); }}>Kenaikan kosong = {opsiNaik[1]}</button>}
+          </div>
+          <div className="row">
+            <button className="btn" onClick={unduh}>⬇ Excel</button>
+            {!ro && <FilePick label="⬆ Upload Excel" onFile={upload} />}
+            {!ro && <button className="btn primary" onClick={simpan} disabled={busy}>{busy ? 'Menyimpan…' : '💾 Simpan'}{dirty ? ' *' : ''}</button>}
+          </div>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Nilai ekskul 0–100 (predikat & keterangan otomatis, mis. 80 → B "Siswa Aktif dalam Berbagai Kegiatan …") atau langsung huruf A/B/C/D. Ketidakhadiran dalam hari. {genap ? 'Kenaikan kelas tercetak di rapor semester genap.' : 'Kolom kenaikan muncul saat Semester diatur "Genap".'}</p>
+      </div>
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0, maxHeight: '70vh' }}>
+          <table className="data">
+            <thead><tr><th>No</th><th>Nama</th>{[1, 2, 3].map(i => <th key={i}>Ekskul {i} · nilai</th>)}<th>S</th><th>I</th><th>A</th>{genap && <th>Kenaikan</th>}</tr></thead>
+            <tbody>{rows.map((r, i) => (
+              <tr key={r.Key}>
+                <td>{i + 1}</td><td style={{ minWidth: 190 }}>{r.Nama}</td>
+                {[0, 1, 2].map(k => (
+                  <td key={k} style={{ minWidth: 230 }}><div className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                    <select value={r.Ekskul[k].n} disabled={ro} onChange={e => setE(i, k, 'n', e.target.value)}>{ekOpts(r.Ekskul[k].n).map(x => <option key={x} value={x}>{x || '–'}</option>)}</select>
+                    <input value={r.Ekskul[k].v} disabled={ro} onChange={e => setE(i, k, 'v', e.target.value)} style={{ width: 54 }} />
+                    <b style={{ width: 14 }}>{/^[ABCD]$/i.test(r.Ekskul[k].v) ? r.Ekskul[k].v.toUpperCase() : predOf(r.Ekskul[k].v)}</b>
+                  </div></td>
+                ))}
+                {['Sakit', 'Izin', 'Alpa'].map(f => <td key={f} style={{ minWidth: 52 }}><input style={{ minWidth: 44 }} inputMode="numeric" value={r[f]} disabled={ro} onChange={e => set(i, f, e.target.value)} /></td>)}
+                {genap && <td style={{ width: 120 }}><select value={r.Kenaikan} disabled={ro} onChange={e => set(i, 'Kenaikan', e.target.value)}>{opsiNaik.map(x => <option key={x} value={x}>{x || '–'}</option>)}</select></td>}
+              </tr>))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function downloadTemplateIdentitas(w) {
+  const ws = XLSX.utils.aoa_to_sheet([IDEN_COLS.map(c => c[1]), ...w.siswa.map(s => IDEN_COLS.map(([k]) => k === 'NISN' ? s.NISN : k === 'Nama' ? s.Nama : ((s.Identitas || {})[k] || '')))]);
+  ws['!cols'] = IDEN_COLS.map(([k]) => ({ wch: k === 'Nama' ? 30 : /Alamat/.test(k) ? 34 : 16 }));
+  IDEN_COLS.forEach((c, i) => { for (let r = 1; r <= w.siswa.length; r++) { const a = XLSX.utils.encode_cell({ r, c: i }); if (ws[a]) { ws[a].t = 's'; ws[a].v = String(ws[a].v ?? ''); } } });
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Identitas');
+  XLSX.writeFile(wb, 'Identitas_Siswa_Kelas_' + (ROMAWI[w.kelas] || w.kelas) + '.xlsx');
+}
+/** Baca identitas: template aplikasi ATAU sheet "DataSiswa" dari file rapor Excel lama sekolah. */
+function bacaIdentitas(wb) {
+  const tgl = v => typeof v === 'number' ? XLSX.SSF.format('dd-mm-yyyy', v) : String(v ?? '').trim();
+  const lama = wb.SheetNames.find(n => n.toLowerCase() === 'datasiswa');
+  if (lama) {
+    const a = XLSX.utils.sheet_to_json(wb.Sheets[lama], { header: 1, defval: '', raw: false });
+    const r = XLSX.utils.sheet_to_json(wb.Sheets[lama], { header: 1, defval: '', raw: true });
+    const h = a.findIndex(x => normN(x[2]) === 'nama');
+    if (h >= 0) {
+      const urut = ['NISN', 'Nama', 'JK', 'TempatLahir', 'TanggalLahir', 'Agama', 'StatusKeluarga', 'AnakKe', 'Alamat', 'SekolahAsal', 'DiterimaKelas', 'DiterimaTanggal', 'Ayah', 'Ibu', 'AlamatOrtu', 'TeleponOrtu', 'PekerjaanAyah', 'PekerjaanIbu', 'NamaWali', 'AlamatWali', 'TeleponWali', 'PekerjaanWali'];
+      return a.slice(h + 2).map((x, i) => {
+        const o = {};
+        urut.forEach((k, j) => { o[k] = /Tanggal/.test(k) ? tgl(r[h + 2 + i][j + 1]) : String(x[j + 1] ?? '').trim(); });
+        o.NISN = o.NISN.replace(/^'/, ''); o.NIS = o.NISN; // kolom "NIS/NISN" di file lama
+        return o;
+      }).filter(o => o.Nama);
+    }
+  }
+  const name = wb.SheetNames.find(n => n.toLowerCase() === 'identitas') || wb.SheetNames[0];
+  const a = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: false });
+  const r = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true });
+  const head = (a[0] || []).map(x => normN(x));
+  const idx = IDEN_COLS.map(([k, l]) => head.findIndex(x => x === normN(l) || x === normN(k)));
+  if (idx[1] < 0) throw new Error('Kolom "Nama" tidak ditemukan. Gunakan template dari tombol Download.');
+  return a.slice(1).map((x, i) => {
+    const o = {};
+    IDEN_COLS.forEach(([k], j) => { if (idx[j] >= 0) o[k] = /Tanggal/.test(k) ? tgl(r[i + 1][idx[j]]) : String(x[idx[j]] ?? '').trim(); });
+    return o;
+  }).filter(o => o.Nama);
+}
+function WaliIdentitas({ w, reload }) {
+  const { notify } = useContext(Ctx);
+  const [busy, setBusy] = useState(false);
+  const [lihat, setLihat] = useState(null);
+  const ada = w.siswa.filter(s => s.Identitas).length;
+  const upload = async f => {
+    setBusy(true);
+    try {
+      const rows = bacaIdentitas(await readXlsx(f));
+      const r = await api('raporSimpanIdentitas', { kelas: w.kelas, rows });
+      notify(`${r.tersimpan} identitas tersimpan` + (r.tidakCocok.length ? ` · ${r.tidakCocok.length} baris bukan siswa kelas ini (dilewati)` : ''));
+      reload();
+    } catch (e) { notify(e.message, 'err'); }
+    finally { setBusy(false); }
+  };
+  return (
+    <>
+      <div className="card">
+        <div className="row">
+          <button className="btn" onClick={() => downloadTemplateIdentitas(w)}>⬇ Download template (sudah berisi nama siswa)</button>
+          <FilePick label={busy ? 'Mengimpor…' : '⬆ Upload Excel identitas'} className="btn primary" onFile={upload} disabled={busy} />
+          <span className="muted">{ada}/{w.siswa.length} siswa sudah ada identitas</span>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Untuk halaman <b>Keterangan Tentang Diri Peserta Didik</b>. Bisa juga langsung upload <b>file rapor Excel lama</b> sekolah — aplikasi membaca sheet <code>DataSiswa</code>-nya. Siswa dicocokkan lewat NISN (atau nama).</p>
+      </div>
+      <div className="card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0 }}>
+          <table className="data">
+            <thead><tr><th>No</th><th>Nama</th><th>NISN</th><th>Tempat, Tgl Lahir</th><th>Orang tua</th><th>Status</th><th></th></tr></thead>
+            <tbody>{w.siswa.map((s, i) => { const d = s.Identitas || {}; return (
+              <tr key={s.Key}><td>{i + 1}</td><td>{s.Nama}</td><td>{s.NISN}</td><td>{[d.TempatLahir, d.TanggalLahir].filter(Boolean).join(', ')}</td><td>{[d.Ayah, d.Ibu].filter(Boolean).join(' / ')}</td>
+                <td>{s.Identitas ? <span className="badge b-hijau">✓</span> : <span className="badge b-abu">Belum</span>}</td>
+                <td>{s.Identitas && <button className="btn sm" onClick={() => setLihat(s)}>Lihat</button>}</td></tr>); })}</tbody>
+          </table>
+        </div>
+      </div>
+      {lihat && <Modal title={lihat.Nama} onClose={() => setLihat(null)}>
+        <table className="data"><tbody>{IDEN_COLS.slice(2).map(([k, l]) => <tr key={k}><td className="muted">{l}</td><td>{lihat.Identitas[k] || '–'}</td></tr>)}</tbody></table>
+      </Modal>}
+    </>
+  );
+}
+
+const singkatMapel = m => String(m.Kode).replace(/\d+$/, '');
+function Leger({ c }) {
+  const sorted = c.siswa;
+  const unduh = () => {
+    const h1 = ['No', 'NISN', 'Nama', 'L/P', ...c.mapel.map(m => 'P ' + singkatMapel(m)), 'Jumlah P', 'Rata P', ...c.mapel.map(m => 'K ' + singkatMapel(m)), 'Jumlah K', 'Rata K', 'Total', 'Rata-rata', 'Ranking', 'Sikap Spiritual', 'Sikap Sosial', 'Sakit', 'Izin', 'Alpa'];
+    const r2 = x => x == null ? '' : Math.round(x * 100) / 100;
+    const aoa = [
+      ['LEGER NILAI RAPOR — KELAS ' + c.kelasTeks + ' — SEMESTER ' + c.semesterTeks + ' — ' + c.sekolah.tahun], [c.sekolah.nama], [], h1,
+      ['', '', 'KBM', '', ...c.mapel.map(m => m.KKM), '', '', ...c.mapel.map(m => m.KKM)],
+      ...sorted.map((s, i) => [i + 1, s.NISN, s.Nama, s.JK, ...s.nilai.map(n => n.P ?? ''), r2(s.leger.jumlahP), r2(s.leger.rataP), ...s.nilai.map(n => n.K ?? ''), r2(s.leger.jumlahK), r2(s.leger.rataK), r2(s.leger.total), r2(s.leger.rata), s.leger.ranking, s.sikap.predSS, s.sikap.predSO, s.absen.Sakit, s.absen.Izin, s.absen.Alpa])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 4 }, { wch: 12 }, { wch: 28 }, { wch: 4 }, ...h1.slice(4).map(() => ({ wch: 7 }))];
+    const keterangan = XLSX.utils.aoa_to_sheet([['Kode', 'Mata pelajaran', 'Kelompok', 'KBM'], ...c.mapel.map(m => [singkatMapel(m), m.Nama, m.Kelompok, m.KKM])]);
+    keterangan['!cols'] = [{ wch: 8 }, { wch: 44 }, { wch: 10 }, { wch: 6 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Leger'); XLSX.utils.book_append_sheet(wb, keterangan, 'Kode Mapel');
+    XLSX.writeFile(wb, 'Leger_Kelas_' + (ROMAWI[c.kelas] || c.kelas) + '.xlsx');
+  };
+  return (
+    <>
+      <div className="card row" style={{ justifyContent: 'space-between' }}>
+        <span className="muted">P = pengetahuan, K = keterampilan. Ranking berdasarkan total (jumlah P + jumlah K).</span>
+        <div className="row"><button className="btn" onClick={() => window.print()}>🖨 Cetak</button><button className="btn primary" onClick={unduh}>⬇ Leger Excel</button></div>
+      </div>
+      <div className="card print-card" style={{ padding: 0 }}>
+        <div className="tablewrap" style={{ border: 0, maxHeight: '70vh' }}>
+          <table className="data leger">
+            <thead>
+              <tr><th rowSpan={2}>No</th><th rowSpan={2}>Nama</th><th colSpan={c.mapel.length + 1} style={{ textAlign: 'center' }}>Pengetahuan</th><th colSpan={c.mapel.length + 1} style={{ textAlign: 'center' }}>Keterampilan</th><th rowSpan={2}>Total</th><th rowSpan={2}>Rata²</th><th rowSpan={2}>Rank</th></tr>
+              <tr>{c.mapel.map(m => <th key={'p' + m.Kode} title={m.Nama}>{singkatMapel(m)}</th>)}<th>Rata</th>{c.mapel.map(m => <th key={'k' + m.Kode} title={m.Nama}>{singkatMapel(m)}</th>)}<th>Rata</th></tr>
+            </thead>
+            <tbody>{c.siswa.map((s, i) => (
+              <tr key={s.Key}><td>{i + 1}</td><td style={{ whiteSpace: 'nowrap' }}>{s.Nama}</td>
+                {s.nilai.map((n, j) => <td key={'p' + j} style={n.P != null && n.P < c.mapel[j].KKM ? { color: '#dc2626' } : null}>{fmtR(n.P)}</td>)}<td><b>{fmtR(s.leger.rataP)}</b></td>
+                {s.nilai.map((n, j) => <td key={'k' + j} style={n.K != null && n.K < c.mapel[j].KKM ? { color: '#dc2626' } : null}>{fmtR(n.K)}</td>)}<td><b>{fmtR(s.leger.rataK)}</b></td>
+                <td>{fmtR(s.leger.total)}</td><td>{fmtR(s.leger.rata)}</td><td><b>{s.leger.ranking}</b></td></tr>))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ---------- Cetak rapor ---------- */
+function tglRapor(c) { return c.sekolah.tglRapor ? fmtTanggal(c.sekolah.tglRapor, false) : '.............................'; }
+function noInduk(s) { const nis = (s.Identitas || {}).NIS; return nis && nis !== s.NISN ? nis + ' / ' + (s.NISN || '-') : (s.NISN || '-'); }
+function CetakRapor({ c }) {
+  const foto = useFoto();
+  const [pilih, setPilih] = useState('semua');
+  const [bag, setBag] = useState({ sampul: false, diri: false, kompetensi: true });
+  const daftar = pilih === 'semua' ? c.siswa : c.siswa.filter(s => s.Key === pilih);
+  const F4 = c.sekolah.kertas !== 'A4';
+  const W = F4 ? 215 : 210, H = F4 ? 330 : 297;
+  const css = `@page rp-p{size:${W}mm ${H}mm;margin:12mm 14mm}@page rp-l{size:${H}mm ${W}mm;margin:9mm 10mm}
+    .rp-p{page:rp-p}.rp-l{page:rp-l}
+    @media screen{.rp-p{width:${W}mm;min-height:${H}mm;padding:12mm 14mm}.rp-l{width:${H}mm;min-height:${W}mm;padding:9mm 10mm}}
+    @media print{.rapor-cetak .rp-p{width:${W - 28}mm!important}.rapor-cetak .rp-l{width:${H - 20}mm!important}}`;
+  return (
+    <>
+      <style>{css}</style>
+      <div className="card no-print">
+        <div className="row">
+          <select value={pilih} onChange={e => setPilih(e.target.value)} style={{ width: 260 }}><option value="semua">Semua siswa ({c.siswa.length})</option>{c.siswa.map(s => <option key={s.Key} value={s.Key}>{s.Nama}</option>)}</select>
+          {[['sampul', 'Sampul'], ['diri', 'Keterangan diri'], ['kompetensi', 'Pencapaian kompetensi']].map(([k, l]) =>
+            <label key={k} className="row" style={{ gap: 4, margin: 0 }}><input type="checkbox" style={{ width: 'auto' }} checked={bag[k]} onChange={e => setBag({ ...bag, [k]: e.target.checked })} />{l}</label>)}
+          <button className="btn primary" onClick={() => window.print()}>🖨 Cetak</button>
+        </div>
+        <p className="hint" style={{ marginBottom: 0 }}>Kertas <b>{F4 ? 'F4 (215 × 330 mm)' : 'A4'}</b> — sampul & keterangan diri tegak, pencapaian kompetensi mendatar (seperti file rapor sekolah). Ubah kertas & tanggal rapor di menu Pengaturan Rapor. Di jendela cetak pilih ukuran kertas yang sama, margin "Default", dan centang "Background graphics".</p>
+      </div>
+      <div className="rapor-cetak">
+        {daftar.map(s => (
+          <React.Fragment key={s.Key}>
+            {bag.sampul && <RaporSampul c={c} s={s} />}
+            {bag.diri && <RaporDiri c={c} s={s} foto={foto[s.Key]} />}
+            {bag.kompetensi && <RaporKompetensi c={c} s={s} />}
+          </React.Fragment>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function RaporSampul({ c, s }) {
+  const k = c.sekolah;
+  return (
+    <div className="page rp-p rp-sampul">
+      <div style={{ textAlign: 'center', marginTop: '18mm' }}>
+        <div style={{ fontSize: '20pt', fontWeight: 700, letterSpacing: 1 }}>LAPORAN</div>
+        <div style={{ fontSize: '15pt', fontWeight: 700 }}>HASIL BELAJAR PESERTA DIDIK</div>
+        <div style={{ fontSize: '15pt', fontWeight: 700, color: '#1e3a8a' }}>SEKOLAH MENENGAH ATAS</div>
+        <div style={{ fontSize: '14pt', fontWeight: 700 }}>(SMA)</div>
+        {k.logo ? <img src={driveImg(k.logo)} alt="" style={{ height: '55mm', margin: '22mm auto 0', display: 'block' }} /> : <div style={{ height: '77mm' }} />}
+        <div style={{ marginTop: '30mm', fontWeight: 700, fontSize: '10pt' }}>NAMA PESERTA DIDIK</div>
+        <div className="rp-kotak" style={{ fontSize: '17pt', color: '#1e3a8a' }}>{s.Nama}</div>
+        <div style={{ marginTop: '6mm', fontWeight: 700, fontSize: '10pt' }}>NIS/NISN</div>
+        <div className="rp-kotak" style={{ fontSize: '14pt', color: '#b45309' }}>{noInduk(s)}</div>
+      </div>
+      <table className="rp-id" style={{ marginTop: '28mm', fontWeight: 700, fontSize: '9.5pt' }}><tbody>
+        <tr><td style={{ width: '30mm' }}>NAMA SEKOLAH</td><td>: {k.nama}</td></tr>
+        <tr><td>NSS</td><td>: {k.nss}</td></tr>
+        <tr><td>NPSN</td><td>: {k.npsn}</td></tr>
+        <tr><td>ALAMAT</td><td>: {k.alamat}{k.kabupaten ? <><br />&nbsp; {k.kabupaten}</> : null}</td></tr>
+      </tbody></table>
+    </div>
+  );
+}
+
+function RaporDiri({ c, s, foto }) {
+  const d = s.Identitas || {}, k = c.sekolah;
+  const v = x => x ? String(x) : '-';
+  const jk = String(s.JK).toUpperCase() === 'P' ? 'Perempuan' : String(s.JK).toUpperCase() === 'L' ? 'Laki-laki' : v(s.JK);
+  const tl = /^\d{4}-\d{2}-\d{2}$/.test(d.TanggalLahir || '') ? fmtTanggal(d.TanggalLahir, false) : d.TanggalLahir;
+  const baris = [
+    ['1.', 'Nama Siswa', <b>{s.Nama}</b>], ['2.', 'Nomor Induk / NISN', noInduk(s)], ['3.', 'Tempat dan Tanggal Lahir', [d.TempatLahir, tl].filter(Boolean).join(', ') || '-'],
+    ['4.', 'Jenis Kelamin', jk], ['5.', 'Agama', v(d.Agama)], ['6.', 'Status dalam Keluarga', v(d.StatusKeluarga)], ['7.', 'Anak ke', v(d.AnakKe)],
+    ['8.', 'Alamat Siswa', v(d.Alamat)], ['', 'Telepon', v(d.Telepon)], ['9.', 'Sekolah Asal', v(d.SekolahAsal)],
+    ['10.', 'Diterima di Sekolah ini', ''], ['', 'Di Kelas', v(d.DiterimaKelas)], ['', 'Pada Tanggal', v(d.DiterimaTanggal)],
+    ['11.', 'Nama Orang Tua', ''], ['', 'a. Ayah', v(d.Ayah)], ['', 'b. Ibu', v(d.Ibu)],
+    ['12.', 'Alamat Orang Tua', v(d.AlamatOrtu)], ['', 'Telepon', v(d.TeleponOrtu)],
+    ['13.', 'Pekerjaan Orang Tua', ''], ['', 'a. Ayah', v(d.PekerjaanAyah)], ['', 'b. Ibu', v(d.PekerjaanIbu)],
+    ['14.', 'Nama Wali', v(d.NamaWali)], ['15.', 'Alamat Wali', v(d.AlamatWali)], ['', 'Telepon', v(d.TeleponWali)], ['16.', 'Pekerjaan Wali', v(d.PekerjaanWali)]
+  ];
+  return (
+    <div className="page rp-p">
+      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '13pt', textDecoration: 'underline', color: '#1e3a8a', margin: '4mm 0 9mm' }}>KETERANGAN TENTANG DIRI PESERTA DIDIK</div>
+      <table className="rp-id rp-diri"><tbody>
+        {baris.map((b, i) => <tr key={i}><td style={{ width: '9mm', textAlign: 'right', paddingRight: '2mm' }}>{b[0]}</td><td style={{ width: '62mm', paddingLeft: /^[ab]\.|^(Di Kelas|Pada|Telepon)/.test(b[1]) && !b[0] ? '5mm' : 0 }}>{b[1]}</td><td style={{ width: '4mm' }}>{b[2] === '' ? '' : ':'}</td><td>{b[2]}</td></tr>)}
+      </tbody></table>
+      <div className="rp-ttd-diri">
+        <div className="rp-foto">{foto ? <img src={foto} alt="" /> : <span>Pas Foto<br />3 × 4</span>}</div>
+        <div style={{ width: '75mm' }}>
+          {k.kota}, {tglRapor(c)}<br />Kepala Sekolah<br />{k.nama}
+          <div style={{ height: '22mm' }} />
+          <b style={{ textDecoration: 'underline' }}>{k.kepsek}</b><br />NIP. {k.nipKepsek || '-'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RaporKompetensi({ c, s }) {
+  const k = c.sekolah;
+  const grup = ['A', 'B', 'C', 'PILIHAN'].map(g => ({ g, rows: c.mapel.map((m, i) => ({ m, n: s.nilai[i] })).filter(x => x.m.Kelompok === g) })).filter(x => x.rows.length);
+  const ek = s.ekskul.length ? s.ekskul : [];
+  const ekRows = [...ek, ...Array(Math.max(0, 3 - ek.length)).fill(null)];
+  return (
+    <div className="page rp-l rp-komp">
+      <div style={{ textAlign: 'center', fontWeight: 700, fontSize: '12pt', textDecoration: 'underline', marginBottom: '5mm' }}>PENCAPAIAN KOMPETENSI SISWA</div>
+      <table className="rp-head"><tbody>
+        <tr><td style={{ width: '32mm' }}>Nama Sekolah</td><td>: <b>{k.nama}</b></td><td style={{ width: '30mm' }}>Kelas</td><td style={{ width: '45mm' }}>: <b>{c.kelasTeks}</b></td></tr>
+        <tr><td>Alamat</td><td>: {k.alamat}</td><td>Semester</td><td>: <b>{c.semesterTeks}</b></td></tr>
+        {k.kabupaten && <tr><td></td><td>&nbsp; {k.kabupaten}</td><td>Tahun Pelajaran</td><td>: <b>{k.tahun}</b></td></tr>}
+        <tr><td>Nama</td><td>: <b>{s.Nama}</b></td>{!k.kabupaten ? <><td>Tahun Pelajaran</td><td>: <b>{k.tahun}</b></td></> : <><td></td><td></td></>}</tr>
+        <tr><td>Nomor Induk/NISN</td><td>: <b>{noInduk(s)}</b></td><td></td><td></td></tr>
+      </tbody></table>
+
+      <div className="rp-h">A. SIKAP</div>
+      <div className="rp-sub">1. Sikap Spiritual</div>
+      <table className="rp-t"><thead><tr><th style={{ width: '30mm' }}>PREDIKAT</th><th>DESKRIPSI</th></tr></thead>
+        <tbody><tr><td className="c rp-pred">{s.sikap.predSS}</td><td className="c rp-sikap">{s.sikap.deskSS}</td></tr></tbody></table>
+      <div className="rp-sub">2. Sikap Sosial</div>
+      <table className="rp-t"><thead><tr><th style={{ width: '30mm' }}>PREDIKAT</th><th>DESKRIPSI</th></tr></thead>
+        <tbody><tr><td className="c rp-pred">{s.sikap.predSO}</td><td className="c rp-sikap">{s.sikap.deskSO}</td></tr></tbody></table>
+
+      <div className="rp-h" style={{ breakBefore: 'page' }}>B. PENGETAHUAN DAN KETERAMPILAN</div>
+      <table className="rp-t rp-nilai">
+        <colgroup><col style={{ width: '7mm' }} /><col style={{ width: '44mm' }} /><col style={{ width: '10mm' }} /><col style={{ width: '14mm' }} /><col style={{ width: '17mm' }} /><col /><col style={{ width: '10mm' }} /><col style={{ width: '14mm' }} /><col style={{ width: '17mm' }} /><col /></colgroup>
+        <thead>
+          <tr className="rp-nama-ulang"><td colSpan={10}>{s.Nama} · {c.kelasTeks}</td></tr>
+          <tr><th rowSpan={2}>NO</th><th rowSpan={2}>MATA PELAJARAN</th><th rowSpan={2}>KBM</th><th colSpan={3}>PENGETAHUAN</th><th rowSpan={2}>KBM</th><th colSpan={3}>KETERAMPILAN</th></tr>
+          <tr><th>ANGKA</th><th>PREDIKAT</th><th>DESKRIPSI</th><th>ANGKA</th><th>PREDIKAT</th><th>DESKRIPSI</th></tr>
+        </thead>
+        <tbody>
+          {grup.map(({ g, rows }) => (
+            <React.Fragment key={g}>
+              <tr className="rp-grup"><td colSpan={10}>{KELOMPOK_LABEL[g]}</td></tr>
+              {g === 'C' && k.peminatan && <tr className="rp-subgrup"><td></td><td colSpan={9}>{k.peminatan}</td></tr>}
+              {rows.map(({ m, n }, i) => (
+                <tr key={m.Kode} className="rp-baris">
+                  <td className="c">{i + 1}</td><td>{m.Nama}</td>
+                  <td className="c">{m.KKM}</td><td className="c rp-p-angka"><b>{fmtR(n.P)}</b></td><td className="c">{n.predP}</td><td className="rp-desk">{n.deskP}</td>
+                  <td className="c">{m.KKM}</td><td className="c rp-k-angka"><b>{fmtR(n.K)}</b></td><td className="c">{n.predK}</td><td className="rp-desk">{n.deskK}</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="rp-blok">
+        <div className="rp-h">C. EKSTRAKURIKULER</div>
+        <table className="rp-t"><thead><tr><th style={{ width: '10mm' }}>NO</th><th style={{ width: '75mm' }}>EKSTRAKURIKULER</th><th style={{ width: '25mm' }}>PREDIKAT</th><th>KETERANGAN</th></tr></thead>
+          <tbody>{ekRows.map((e, i) => <tr key={i}><td className="c">{i + 1}</td><td>{e ? e.nama : '-'}</td><td className="c">{e ? e.predikat : '-'}</td><td className="c">{e ? e.ket : '-'}</td></tr>)}</tbody></table>
+      </div>
+      <div className="rp-blok">
+        <div className="rp-h">D. KETIDAKHADIRAN</div>
+        <table className="rp-t" style={{ width: '90mm' }}><tbody>
+          {[['Sakit', s.absen.Sakit], ['Izin', s.absen.Izin], ['Tanpa Keterangan', s.absen.Alpa]].map(([l, v]) => <tr key={l}><td style={{ width: '55mm' }}>{l}</td><td className="c" style={{ width: '14mm' }}>{v || '-'}</td><td>hari</td></tr>)}
+        </tbody></table>
+      </div>
+      {s.catatan && <div className="rp-blok"><div className="rp-h">Catatan Wali Kelas</div><div className="rp-catatan">{s.catatan}</div></div>}
+      {s.kenaikan && <div className="rp-blok rp-naik">{s.kenaikan}</div>}
+      <div className="rp-ttd">
+        <div className="rp-ttd3">
+          <div>Mengetahui,<br />Orang Tua/Wali<div className="rp-sp" />.................................</div>
+          <div>{k.kota}, {tglRapor(c)}<br />Wali Kelas<div className="rp-sp" /><b style={{ textDecoration: 'underline' }}>{c.wali.nama || '.................................'}</b><br />NIP. {c.wali.nip || '-'}</div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: '4mm' }}>Mengetahui,<br />Kepala Sekolah<div className="rp-sp" /><b style={{ textDecoration: 'underline' }}>{k.kepsek}</b><br />NIP. {k.nipKepsek || '-'}</div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- App ---------------- */
 const MENU = {
   admin: [
@@ -2319,11 +3044,12 @@ const MENU = {
     ['sec', 'Ujian'], ['monitor', '📡 Monitoring'], ['nilai', '📊 Nilai & Koreksi'],
     ['sec', 'Soal'], ['soal', '📝 Bank Soal'],
     ['sec', 'Cetak'], ['kartu', '🪪 Kartu Peserta'], ['meja', '🪑 Kartu Meja'], ['denah', '🗺 Denah Meja'], ['kguru', '🔑 Kartu Login Guru'], ['hadir', '✍ Daftar Hadir'], ['ba', '📄 Berita Acara'],
+    ['sec', 'Rapor K13'], ['rnilai', '📒 Nilai Rapor'], ['rwali', '🎓 Wali Kelas & Cetak Rapor'], ['rpeng', '⚙ Pengaturan Rapor'],
     ['sec', 'Sistem'], ['uji', '🚦 Uji Server'], ['pengaturan', '⚙ Pengaturan']
   ],
-  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['nilai', '📊 Nilai & Koreksi'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring']]
+  guru: [['sec', 'Guru'], ['soal', '📝 Soal Saya'], ['nilai', '📊 Nilai & Koreksi'], ['sec', 'Pengawas'], ['monitor', '📡 Monitoring'], ['sec', 'Rapor K13'], ['rnilai', '📒 Nilai Rapor'], ['rwali', '🎓 Wali Kelas & Cetak Rapor']]
 };
-const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', denah: 'Cetak Denah Meja', kguru: 'Cetak Kartu Login Guru', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian', nilai: 'Nilai & Koreksi' };
+const TITLE = { dashboard: 'Dashboard', siswa: 'Data Peserta', foto: 'Foto Peserta', guru: 'Data Guru', mapel: 'Mapel & Guru Pengampu', ruang: 'Ruang Ulangan', jadwal: 'Jadwal Ulangan', soal: 'Bank Soal', kartu: 'Cetak Kartu Peserta', meja: 'Cetak Kartu Meja', denah: 'Cetak Denah Meja', kguru: 'Cetak Kartu Login Guru', hadir: 'Cetak Daftar Hadir', ba: 'Cetak Berita Acara', pengaturan: 'Pengaturan', uji: 'Uji Server (Simulasi Serentak)', monitor: 'Monitoring Ujian', nilai: 'Nilai & Koreksi', rnilai: 'Nilai Rapor K13', rwali: 'Wali Kelas & Cetak Rapor', rpeng: 'Pengaturan Rapor' };
 
 function App() {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem('us_user')); } catch (e) { return null; } });
@@ -2341,6 +3067,13 @@ function App() {
     return () => { window.removeEventListener('sesi-habis', h); window.removeEventListener('api-retry', r1); window.removeEventListener('api-ok', r2); };
   }, []);
   useEffect(() => { if (user) setPage(p => p || (user.peran === 'admin' ? 'dashboard' : 'soal')); }, [user]);
+  // Status wali kelas bisa diubah admin kapan saja → perbarui saat aplikasi dibuka
+  useEffect(() => {
+    if (!user || user.peran !== 'guru') return;
+    api('raporInfo', {}, { silent: true }).then(i => {
+      if ((i.wali || '') !== (user.wali || '')) { const u = { ...user, wali: i.wali }; localStorage.setItem('us_user', JSON.stringify(u)); setUser(u); }
+    }).catch(() => { });
+  }, [user && user.kode]);
 
   const logout = async () => {
     try { await api('logout'); } catch (e) { }
@@ -2352,9 +3085,11 @@ function App() {
 
   const pages = {
     dashboard: <Dashboard go={go} />, siswa: <SiswaPage />, foto: <FotoPage />, guru: <GuruPage />, mapel: <MapelPage />, ruang: <RuangPage />,
-    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, denah: <DenahPage />, kguru: <KartuGuruPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />, nilai: <NilaiPage user={user} />
+    jadwal: <JadwalPage />, soal: <SoalPage user={user} />, kartu: <KartuPage />, meja: <KartuMejaPage />, denah: <DenahPage />, kguru: <KartuGuruPage />, hadir: <DaftarHadirPage awal="hadir" />, ba: <DaftarHadirPage awal="ba" />, pengaturan: <PengaturanPage />, uji: <UjiServerPage />, monitor: <MonitorPage user={user} />, nilai: <NilaiPage user={user} />,
+    rnilai: <RaporNilaiPage user={user} />, rwali: <RaporWaliPage user={user} />, rpeng: <RaporAdminPage go={go} />
   };
-  const allowed = MENU[user.peran].map(m => m[0]);
+  const menu = MENU[user.peran].filter(m => m[0] !== 'rwali' || user.peran === 'admin' || user.wali);
+  const allowed = menu.map(m => m[0]);
 
   return (
     <Ctx.Provider value={{ notify, user }}>
@@ -2362,7 +3097,7 @@ function App() {
         <aside className={'sidebar no-print' + (open ? ' open' : '')}>
           <div className="brand"><b>📝 Ulangan Semester</b><small>{user.nama} · {user.peran}</small></div>
           <nav>
-            {MENU[user.peran].map(([k, l], i) => k === 'sec'
+            {menu.map(([k, l], i) => k === 'sec'
               ? <div className="sec" key={i}>{l}</div>
               : <button key={k} className={page === k ? 'active' : ''} onClick={() => go(k)}>{l}</button>)}
             <div className="sec">Akun</div>
