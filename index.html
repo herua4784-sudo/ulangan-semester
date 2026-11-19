@@ -252,6 +252,13 @@ function driveImg(url) {
   if (/drive\.google|docs\.google/.test(url) && m) return 'https://lh3.googleusercontent.com/d/' + m[0];
   return url;
 }
+/** Link audio: Google Drive → link unduh langsung; selain itu dipakai apa adanya. */
+function mediaUrl(url) {
+  url = String(url || '').trim();
+  const m = url.match(/[-\w]{25,}/);
+  if (/drive\.google|docs\.google/.test(url) && m) return 'https://drive.google.com/uc?export=download&id=' + m[0];
+  return url;
+}
 const ROMAWI = { '10': 'X', '11': 'XI', '12': 'XII' };
 const statusBadge = s => ({ 'Belum Ada': 'b-abu', 'Draft': 'b-biru', 'Diajukan': 'b-kuning', 'Dikembalikan': 'b-merah', 'Terkunci': 'b-hijau' }[s] || 'b-abu');
 const chunk = (arr, n) => { const o = []; for (let i = 0; i < arr.length; i += n) o.push(arr.slice(i, i + n)); return o; };
@@ -277,7 +284,7 @@ function sheetRows(wb, prefer, keys) {
   }).filter(o => Object.values(o).some(v => v !== ''));
 }
 
-const SOAL_KEYS = ['No', 'Jenis', 'Pertanyaan', 'Gambar', 'A', 'B', 'C', 'D', 'E', 'Kunci', 'Skor'];
+const SOAL_KEYS = ['No', 'Jenis', 'Pertanyaan', 'Gambar', 'A', 'B', 'C', 'D', 'E', 'Kunci', 'Skor', 'Audio'];
 function downloadTemplateSoal(kode, nama) {
   const data = [
     SOAL_KEYS,
@@ -285,10 +292,11 @@ function downloadTemplateSoal(kode, nama) {
     [2, 'PGK', 'Manakah yang termasuk bilangan prima? (jawaban bisa lebih dari satu)', '', '2', '4', '5', '9', '11', 'A,C,E', 2],
     [3, 'BS', 'Ibu kota Provinsi Kalimantan Timur adalah Samarinda.', '', '', '', '', '', '', 'B', 1],
     [4, 'ISIAN', 'Hasil dari 15 + 27 = ....', '', '', '', '', '', '', '42|empat puluh dua', 1],
-    [5, 'URAIAN', 'Jelaskan langkah-langkah menyelesaikan persamaan 2x + 4 = 10!', '', '', '', '', '', '', 'Rubrik: langkah benar 3, jawaban x=3 benar 2', 5]
+    [5, 'URAIAN', 'Jelaskan langkah-langkah menyelesaikan persamaan 2x + 4 = 10!', '', '', '', '', '', '', 'Rubrik: langkah benar 3, jawaban x=3 benar 2', 5],
+    [6, 'PG', '(Listening) Listen to the conversation. Where are they going?', '', 'To the market', 'To the school', 'To the hospital', 'To the beach', '', 'B', 1, 'https://herua4784-sudo.github.io/ulangan-semester/listening-1.mp3']
   ];
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 60 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 6 }];
+  ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 60 }, { wch: 25 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 6 }, { wch: 45 }];
   const petunjuk = XLSX.utils.aoa_to_sheet([
     ['PETUNJUK PENGISIAN SOAL' + (nama ? ' — ' + nama : '')],
     [''],
@@ -300,6 +308,8 @@ function downloadTemplateSoal(kode, nama) {
     ['   ISIAN  = Isian singkat. Kunci: jawaban; jika ada beberapa jawaban benar pisahkan dengan |'],
     ['   URAIAN = Esai, dikoreksi guru. Kolom Kunci boleh diisi rubrik/pedoman'],
     ['3. Kolom Gambar (opsional): link gambar di Google Drive (bagikan "Siapa saja yang memiliki link").'],
+    ['3b. Kolom Audio (opsional, untuk listening): link file MP3. Cara paling andal: serahkan MP3 ke admin untuk diunggah ke GitHub aplikasi, linknya menjadi https://herua4784-sudo.github.io/ulangan-semester/NAMAFILE.mp3 (nama file tanpa spasi).'],
+    ['    Link Google Drive juga bisa (bagikan "Siapa saja yang memiliki link"), tetapi bisa tersendat jika 60+ siswa memutar bersamaan. Beberapa soal boleh memakai link audio yang sama (jatah putar dihitung bersama).'],
     ['4. Kolom Skor: bobot nilai soal. Kosong = 1.'],
     ['5. Soal & kunci bersifat RAHASIA. Jangan bagikan file ini lewat grup WhatsApp.'],
     ['6. Setelah upload, periksa di menu "Lihat", lalu klik "Ajukan" agar diverifikasi admin.']
@@ -1087,6 +1097,7 @@ function SoalPage({ user }) {
                 </div>
                 <div className="q">{s.Pertanyaan}</div>
                 {s.Gambar && <img src={driveImg(s.Gambar)} alt="gambar soal" />}
+                {s.Audio && <div style={{ margin: '4px 0 8px' }}><div className="hint">🎧 Audio listening:</div><audio controls preload="none" src={mediaUrl(s.Audio)} style={{ width: '100%' }} /></div>}
                 {(s.Jenis === 'PG' || s.Jenis === 'PGK') && ['A', 'B', 'C', 'D', 'E'].filter(k => s[k]).map(k => (
                   <div key={k} className={'opsi' + (kunci.includes(k) ? ' benar' : '')}>{k}. {s[k]} {kunci.includes(k) && '✓'}</div>
                 ))}
