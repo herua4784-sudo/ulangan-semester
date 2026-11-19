@@ -450,7 +450,7 @@ function TableEditor({ name, columns, reloadKey, rowActions, toolbar, onLoaded }
                   if (opts) return (
                     <td key={c.key} style={{ minWidth: c.width }}>
                       <select value={v} onChange={e => set(i, c.key, e.target.value)}>
-                        <option value="">—</option>
+                        {!opts.some(o => typeof o === 'object' && o.value === '') && <option value="">—</option>}
                         {opts.map(o => typeof o === 'string' ? <option key={o} value={o}>{o}</option> : <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </td>
