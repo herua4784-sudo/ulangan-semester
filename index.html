@@ -2366,14 +2366,16 @@ const IDEN_COLS = [
   ['TeleponOrtu', 'Telepon Orang Tua'], ['PekerjaanAyah', 'Pekerjaan Ayah'], ['PekerjaanIbu', 'Pekerjaan Ibu'], ['NamaWali', 'Nama Wali'], ['AlamatWali', 'Alamat Wali'],
   ['TeleponWali', 'Telepon Wali'], ['PekerjaanWali', 'Pekerjaan Wali']
 ];
-/** Tanggal identitas selalu tampil DD/MM/YYYY (data lama yyyy-mm-dd / dd-mm-yyyy ikut diubah saat tampil). */
+/** Tanggal identitas tampil "06 Juni 2010" (data yyyy-mm-dd, dd/mm/yyyy, dd-mm-yyyy ikut diubah saat tampil). */
+const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 function tglDMY(v) {
   const t = String(v ?? '').trim();
-  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (m) return m[3].padStart(2, '0') + '/' + m[2].padStart(2, '0') + '/' + m[1];
-  m = t.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);
-  if (m) return m[1].padStart(2, '0') + '/' + m[2].padStart(2, '0') + '/' + m[3];
-  return t;
+  let d, mo, y, m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) { y = m[1]; mo = m[2]; d = m[3]; }
+  else if ((m = t.match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/))) { d = m[1]; mo = m[2]; y = m[3]; }
+  else return t;
+  const nb = BULAN_ID.at(Number(mo) - 1);
+  return nb ? d.padStart(2, '0') + ' ' + nb + ' ' + y : t;
 }
 function cariSiswa(list, nisn, nama) {
   const n = String(nisn || '').trim().replace(/^'/, '');
@@ -2940,7 +2942,7 @@ function downloadTemplateIdentitas(w) {
 }
 /** Baca identitas: template aplikasi ATAU sheet "DataSiswa" dari file rapor Excel lama sekolah. */
 function bacaIdentitas(wb) {
-  const tgl = v => typeof v === 'number' ? XLSX.SSF.format('dd/mm/yyyy', v) : tglDMY(v);
+  const tgl = v => typeof v === 'number' ? tglDMY(XLSX.SSF.format('dd/mm/yyyy', v)) : tglDMY(v);
   const lama = wb.SheetNames.find(n => n.toLowerCase() === 'datasiswa');
   if (lama) {
     const a = XLSX.utils.sheet_to_json(wb.Sheets[lama], { header: 1, defval: '', raw: false });
